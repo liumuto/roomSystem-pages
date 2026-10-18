@@ -25,9 +25,15 @@
   <header class="topbar"><div><span class="eyebrow">从房源线索，到有依据的决定</span><h1 id="page-title">房源观察</h1></div><div class="top-actions"><span id="today"></span><button class="secondary" id="refresh">刷新数据</button><button class="primary" id="add-offer">＋ 收录房源</button></div></header>
   <div id="global-notice" class="notice" role="status"></div><div id="browser-storage-notice" class="notice" hidden>个人房源、核验与笔记仅保存在当前浏览器，不会上传 GitHub。换设备、清理站点数据或使用无痕窗口可能丢失记录，请定期下载完整备份。<button class="text-btn" data-view="settings">前往备份</button></div>
   <section id="view-overview" class="view active">
+    <div class="research-hero"><div><span class="eyebrow">PUBLIC RESEARCH · 公开信息整理</span><h2>先找到可追问的线索，再判断值得看哪套</h2><p>只观察吉州区、吉安县的三房双卫。公开广告和搜索摘要都需要回到来源核实，检索成功不代表房屋仍在售。</p></div><div class="research-target"><span>全部购房支出目标</span><strong id="lead-budget-target">75<small>万元</small></strong><p>首付约40万，费用资金另计</p></div></div>
+    <div class="research-status" id="research-status" role="status"></div>
+    <div class="section-heading"><div><h2>公开信息线索 <span id="lead-result-count"></span></h2><p>列表页中的线索可能指向同一小区的不同房屋，不据此合并报价或计算降价。</p></div><button class="secondary" data-view="sources">查看来源与运行记录</button></div>
+    <div class="filters lead-filters"><input id="lead-search" placeholder="搜索公开线索、小区或来源…" aria-label="搜索公开线索"><select id="lead-filter" aria-label="公开线索筛选"><option value="candidate">候选：隐藏广告已不符项</option><option value="target">预算目标内</option><option value="saved">我的关注</option><option value="all">全部（含历史与排除项）</option></select><select id="lead-region" aria-label="公开线索区域"><option value="">全部区域</option><option>吉州区</option><option>吉安县</option><option value="unknown">行政归属待核实</option></select></div>
+    <div id="lead-cards" class="lead-cards"></div>
+    <div class="section-divider"><span>我的私人决策记录</span></div>
     <div class="summary-grid" id="stats"></div>
     <div class="strategy-strip"><div><span class="pill green">当前策略</span><strong>先核实，再比较；不因低价跳过风险</strong><p id="strategy-text"></p></div><button id="import-open" class="secondary">导入 CSV / JSON</button></div>
-    <div class="section-heading"><div><h2>我的房源池 <span id="result-count"></span></h2><p>挂牌报价不是成交价。评分只用于偏好排序，不代表房屋质量或交易安全。</p></div></div>
+    <div class="section-heading"><div><h2>我的房源池 <span id="result-count"></span></h2><p>自行核实并收录具体房屋后，在这里比较、记录产权核验与购房流程。公开线索不会自动加入私人房源池。</p></div></div>
     <div class="filters"><input id="search" placeholder="搜索小区、地址或笔记…" aria-label="搜索房源"><select id="region-filter" aria-label="按区域筛选"><option value="">全部区域</option><option>吉州区</option><option>吉安县</option><option value="unknown">区划待核实</option></select><select id="budget-filter" aria-label="按预算筛选"><option value="">全部价格带</option><option>目标预算内</option><option>弹性观察</option><option>高于观察线</option><option>价格未知</option></select><select id="status-filter" aria-label="按核验状态筛选"><option value="">候选：隐藏不符/非在售</option><option value="all">全部记录（含排除项）</option><option>待核实</option><option>核验已填齐</option><option>不符合</option><option>非在售</option></select><label class="inline-check"><input id="priority-only" type="checkbox">仅重点小区</label></div>
     <div id="cards" class="cards"></div><div id="duplicate-notice"></div>
   </section>
@@ -66,6 +72,7 @@
 </div><div class="notice amber">“有/是”只是字段值，交易关键核验仍需在房源详情中记录证据。只有重新查看来源或取得新依据才应记录新观测；普通笔记请在详情中修改。更新报价或房况后，既有通过项会转为待复核。</div></div><div class="modal-foot"><button class="secondary close-modal" type="button">取消</button><button class="primary" type="submit">保存房源观测</button></div></form></dialog>
 <dialog id="import-modal"><div class="modal-head"><h2>批量导入房源线索</h2><button class="icon-btn close-modal" aria-label="关闭">×</button></div><div class="modal-body"><p class="muted">支持 UTF-8 CSV / JSON。单套房源必须有稳定详情链接或来源编号；未知字段留空。导入是房源明细，不是数据库恢复。</p><input id="import-file" type="file" accept=".json,.csv"><select id="import-format"><option value="json">JSON</option><option value="csv">CSV</option></select><textarea id="import-text" rows="12" placeholder="粘贴 JSON 数组、{listings:[…]} 或 CSV 内容" spellcheck="false"></textarea><div class="button-row"><button id="import-submit" class="primary">检查并导入</button></div></div></dialog>
 <dialog id="detail-modal" class="detail-modal"><div id="detail-content"></div></dialog>
+<dialog id="lead-modal" class="wide-modal" aria-labelledby="lead-detail-title"><div id="lead-detail-content"></div></dialog>
 
 <dialog id="source-modal"><form id="source-form"><div class="modal-head"><h2 id="source-title">添加授权数据源</h2><button type="button" class="icon-btn close-modal" aria-label="关闭数据源表单">×</button></div><div class="modal-body"><div class="form-grid">
 <label>来源ID（保存后不改）<input name="id" pattern="[A-Za-z0-9][A-Za-z0-9_\-]{0,79}" required placeholder="agent_a"></label><label>显示名称<input name="name" required placeholder="中介A授权房源"></label>

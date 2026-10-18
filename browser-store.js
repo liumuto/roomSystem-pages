@@ -166,7 +166,39 @@
   }).sort((a,b)=>Number(b.assessment.priority)-Number(a.assessment.priority)||b.assessment.score-a.assessment.score||Date.parse(b.first_seen)-Date.parse(a.first_seen));}
   function offer(d,id){const item=list(d).find(x=>x.id===id);if(!item)fail('房源不存在');item.history=d.snapshots.filter(x=>x.offer_id===id).sort((a,b)=>Date.parse(a.observed_at)-Date.parse(b.observed_at)||a.id-b.id).map(x=>({id:x.id,observed_at:x.observed_at,captured_at:x.captured_at,data:clone(x.data)}));item.audit=d.audit.filter(x=>x.offer_id===id).slice(-100).reverse();return item;}
   function duplicates(offers){const out=[];for(let i=0;i<offers.length;i++)for(let j=i+1;j<offers.length&&out.length<100;j++){const a=offers[i],b=offers[j];if(names(a.community)&&names(a.community)===names(b.community)&&a.area_m2&&b.area_m2&&Math.abs(a.area_m2-b.area_m2)<=2&&a.rooms===b.rooms)out.push({left:a.id,right:b.id,community:a.community,reason:'同小区、同房数、面积差≤2㎡；只提示疑似重复，不自动合并，跨平台报价不当成降价。'});}return out;}
-  function state(){const offers=list(db),health=clone(db.source_health),published=db.public_feed;if(feedReadError)health._public_feed={...(health._public_feed||{}),error:feedReadError,next_run:null};return {csrf:'browser-local',version:bootstrap.version||'0.3.0',offers,alerts:db.alerts.slice(-500).reverse(),settings:clone(db.settings),stages:clone(STAGES),statuses:clone(STATUSES),knowledge:clone(bootstrap.knowledge),sources:clone(db.sources),source_health:health,duplicates:duplicates(offers),server_started_at:null,worker_error:'',mail_configured:false,active_sources:0,configured_sources:db.sources.filter(x=>x.enabled&&x.authorized).length,mode:'browser',storage_mode:'localStorage',background_collection:false,feed_status:clone(health._public_feed||{}),public_sources:clone(published.sources),public_source_health:clone(published.source_health),published_monitoring:clone(published.monitoring),public_feed_generated_at:published.generated_at,storage_notice:'记录仅保存在此浏览器；清除网站数据或更换设备不会自动保留，请定期下载浏览器备份。'};}
+  function leadId(value){if(typeof value!=='string'||!/^[A-Za-z0-9][A-Za-z0-9:_-]{0,159}$/.test(value)||['constructor','prototype','__proto__'].includes(value))fail('公开线索 ID 不合法');return value;}
+  function normalizeLead(raw){
+    if(!object(raw))fail('公开线索须为对象');
+    const out={lead_id:leadId(raw.lead_id),source_url:canon(raw.source_url)};if(!out.source_url)fail('公开线索缺少来源链接');
+    for(const k of ['source_item_id','community','district','decoration_claim','collection_run_id','parser_version','access_status'])out[k]=text(raw[k],k==='decoration_claim'?1000:200)||null;
+    if(!['search_index','direct_listing'].includes(raw.evidence_kind))fail('公开线索证据类型不支持');out.evidence_kind=raw.evidence_kind;
+    out.source_domain=new URL(out.source_url).hostname;out.identity_scope=raw.identity_scope==='source_item'?'source_item':'search_entry';
+    out.retrieved_at=recordTime(raw.retrieved_at);
+    for(const k of ['source_updated_at','source_published_at','discovered_at'])out[k]=raw[k]?recordTime(raw[k]):null;
+    for(const k of ['rooms','bathrooms'])out[k]=raw[k]===null||raw[k]===undefined||raw[k]===''?null:numeric(raw[k],k,0,30,true);
+    out.price_wan=raw.price_wan===null||raw.price_wan===undefined||raw.price_wan===''?null:numeric(raw.price_wan,'公开广告价（万元）',0.000001,100000);
+    out.area_m2=raw.area_m2===null||raw.area_m2===undefined||raw.area_m2===''?null:numeric(raw.area_m2,'公开建筑面积',0.000001,9999.999999);
+    for(const k of BOOLS)out[k]=tri(raw[k]);
+    if(raw.freshness_unknown!==undefined&&typeof raw.freshness_unknown!=='boolean')fail('freshness_unknown 须为布尔值');
+    // A search index fetch time never establishes the age of the underlying advert.
+    out.freshness_unknown=raw.evidence_kind==='search_index'||!out.source_updated_at||raw.freshness_unknown!==false;
+    if(raw.uncertainties!==undefined&&(!Array.isArray(raw.uncertainties)||raw.uncertainties.some(x=>typeof x!=='string')||raw.uncertainties.length>40))fail('公开线索待核项须为文本数组');
+    out.uncertainties=(raw.uncertainties||[]).map(x=>text(x,500));return out;
+  }
+  function leadAssessment(lead,cfg){
+    const failures=[],pending=[],price=lead.price_wan===null?null:Math.round(lead.price_wan*10000),total=price===null?null:price+cfg.estimated_fees_yuan+cfg.estimated_refresh_yuan,compare=cfg.budget_basis==='listing_price'?price:total;
+    if(['青原区','井开区','井冈山经济技术开发区'].includes(lead.district)||lead.in_excluded_zone===true)failures.push('区域不符合：排除青原区和井开区');else if(!['吉州区','吉安县'].includes(lead.district))pending.push('实际行政归属待核实');
+    for(const [key,w,label] of [['rooms',3,'三房'],['bathrooms',2,'双卫']]){if(lead[key]===null)pending.push(label+'未知');else if(lead[key]!==w)failures.push(label+'不符合');}
+    for(const [key,label] of [['elevator','电梯'],['parking_usable','不买车位能停车'],['move_in_ready','少量整理可入住'],['young_style','装修偏年轻'],['amenities','日常生活配套']]){if(lead[key]===false)failures.push(label+'不符合');else pending.push(label+(lead[key]===true?'需现场确认广告表述':'待核实'));}
+    if(/毛坯/.test((lead.decoration_claim||'').replace(/非毛坯|不是毛坯|并非毛坯/g,'')))failures.push('广告称毛坯，不符合少量整理入住要求');
+    if(price===null)pending.unshift('实际报价待补充');
+    const budget_band=compare===null?'价格未知':compare<=cfg.budget_yuan?'目标预算内':compare<=cfg.stretch_yuan?'弹性观察':'高于观察线';
+    const questions=[...new Set([...failures,...lead.uncertainties,...pending,'请确认这是同一套住宅、目前仍可出售，当前业主报价及全部费用分别是多少？','请提供近期全屋视频、卫生间和厨房实拍；确认产权、抵押查封与银行可贷额度。'])];
+    return {failures,pending,budget_band,budget_basis:cfg.budget_basis,estimated_purchase_total_yuan:total,budget_compare_yuan:compare,next_checks:questions,status:failures.length?'广告信息不符':'待核实线索'};
+  }
+  function leads(d){return d.leads.map(entry=>({...clone(entry.data),in_latest_feed:entry.in_latest_feed,conflict:entry.conflicts.length>0,history_count:entry.history.length,followup:clone(d.lead_user[entry.lead_id]||{saved:false,notes:'',updated_at:null}),assessment:leadAssessment(entry.data,d.settings)})).sort((a,b)=>Number(a.assessment.failures.length>0)-Number(b.assessment.failures.length>0)||Number(b.followup.saved)-Number(a.followup.saved)||Number(a.price_wan===null)-Number(b.price_wan===null)||Date.parse(b.retrieved_at)-Date.parse(a.retrieved_at));}
+  function leadDetail(d,id){const item=leads(d).find(x=>x.lead_id===id),entry=d.leads.find(x=>x.lead_id===id);if(!item)fail('公开线索不存在');return {...item,history:clone(entry.history),conflicts:clone(entry.conflicts)};}
+  function state(){const offers=list(db),health=clone(db.source_health),published=db.public_feed;if(feedReadError)health._public_feed={...(health._public_feed||{}),error:feedReadError,next_run:null};return {csrf:'browser-local',version:bootstrap.version||'0.4.0',offers,leads:leads(db),research:clone(published.research),public_feed_schema_version:published.schema_version,alerts:db.alerts.slice(-500).reverse(),settings:clone(db.settings),stages:clone(STAGES),statuses:clone(STATUSES),knowledge:clone(bootstrap.knowledge),sources:clone(db.sources),source_health:health,duplicates:duplicates(offers),server_started_at:null,worker_error:'',mail_configured:false,active_sources:0,configured_sources:db.sources.filter(x=>x.enabled&&x.authorized).length,mode:'browser',storage_mode:'localStorage',background_collection:false,feed_status:clone(health._public_feed||{}),public_sources:clone(published.sources),public_source_health:clone(published.source_health),published_monitoring:clone(published.monitoring),public_feed_generated_at:published.generated_at,storage_notice:'记录仅保存在此浏览器；清除网站数据或更换设备不会自动保留，请定期下载浏览器备份。'};}
   function csvCells(input){
     const rows=[];let row=[],cell='',quoted=false,ended=false;
     for(let i=0;i<input.length;i++){const c=input[i];if(quoted){if(c==='"'){if(input[i+1]==='"'){cell+='"';i++;}else {quoted=false;ended=true;}}else cell+=c;}
@@ -250,8 +282,10 @@
     d.source_health[id]={last_attempt:now(),last_success:now(),failures:0,paused:false,result:clone(result),error:null,row_count:rows.length,stale_rows_at_sync:stale,newest_observed_at:times.sort().at(-1)||null,warnings,next_run:null};
   }
   function publicMetadata(payload){
-    const out={generated_at:null,monitor_until:null,sources:[],source_health:{},monitoring:{state:'unknown',reason:'公开数据未提供采集运行状态；读取成功不代表持续采集'}};
+    const out={schema_version:1,generated_at:null,monitor_until:null,sources:[],source_health:{},research:{run_id:null,data_commit_sha:null,completed_at:null,last_success_at:null,source_results:[],query_count:null},monitoring:{state:'unknown',reason:'公开数据未提供采集运行状态；读取成功不代表持续采集'}};
     if(!object(payload))return out;
+    out.schema_version=payload.schema_version===2?2:1;
+    if(object(payload.research)){const r=payload.research;out.research={run_id:text(r.run_id,160)||null,status:['success','partial','failed'].includes(r.status)?r.status:'unknown',data_commit_sha:/^[a-f0-9]{40}$/i.test(r.data_commit_sha||'')?r.data_commit_sha:null,completed_at:r.completed_at?recordTime(r.completed_at):null,last_success_at:r.last_success_at?recordTime(r.last_success_at):null,source_results:Array.isArray(r.source_results)?r.source_results.slice(0,100).filter(object).map(x=>({source_id:text(x.source_id||x.source,100),source_domain:text(x.source_domain,160),status:text(x.status||x.state,80),reason:text(x.reason,500),error:text(x.error,500)||null,retrieved_at:x.retrieved_at?recordTime(x.retrieved_at):null})):[],query_count:Number.isInteger(r.query_count)&&r.query_count>=0?r.query_count:null};}
     if(payload.generated_at)out.generated_at=time(payload.generated_at);
     if(payload.monitor_until){if(typeof payload.monitor_until!=='string'||!/^\d{4}-\d\d-\d\d$/.test(payload.monitor_until))fail('公开数据观察截止日期不正确');time(payload.monitor_until+'T00:00:00Z');out.monitor_until=payload.monitor_until;}
     if(object(payload.monitoring))out.monitoring={state:text(payload.monitoring.state,100)||'unknown',reason:text(payload.monitoring.reason,1000)};
@@ -259,7 +293,26 @@
     if(object(payload.source_health))for(const s of out.sources){const h=payload.source_health[s.id];if(!object(h))continue;const safe={last_attempt:h.last_attempt?time(h.last_attempt):null,last_success:h.last_success?time(h.last_success):null,newest_observed_at:h.newest_observed_at?time(h.newest_observed_at):null,error:h.error?text(h.error,500):null,warnings:Array.isArray(h.warnings)?h.warnings.filter(x=>typeof x==='string').slice(0,20).map(x=>text(x,500)):[],failures:Number.isInteger(h.failures)&&h.failures>=0?h.failures:0,row_count:Number.isInteger(h.row_count)&&h.row_count>=0?h.row_count:null};out.source_health[s.id]=safe;}
     return out;
   }
-  function importPublic(d,raw,baseline=false){const rows=decode(raw,'json',true),payload=JSON.parse(raw.replace(/^\uFEFF/,'')),metadata=publicMetadata(payload),result=importRows(d,rows,true,baseline);d.public_feed=metadata;sourceResult(d,'_public_feed',rows,result);return result;}
+  function importPublic(d,raw,baseline=false){
+    if(typeof raw!=='string'||size(raw)>MAX_BYTES)fail('公开数据不能超过2MB');let payload;try{payload=JSON.parse(raw.replace(/^\uFEFF/,''));}catch{fail('公开数据 JSON 格式不正确');}
+    if(!object(payload)||payload.schema_version!==undefined&&![1,2].includes(payload.schema_version))fail('公开数据 schema_version 不兼容');
+    const metadata=publicMetadata(payload),rows=decode(JSON.stringify({schema_version:1,listings:payload.listings}),'json',true);
+    const incoming=payload.schema_version===2?payload.leads:[];if(!Array.isArray(incoming)||incoming.length>1000)fail('公开线索须为最多1000条的数组');
+    const normalized=incoming.map(normalizeLead),ids=new Set();for(const lead of normalized){if(ids.has(lead.lead_id))fail('同一批次公开线索 ID 重复');ids.add(lead.lead_id);}
+    if(metadata.generated_at&&d.public_feed.generated_at&&Date.parse(metadata.generated_at)<Date.parse(d.public_feed.generated_at))return {new:0,changed:0,unchanged:0,older_ignored:rows.length,conflicts:0,ids:[],leads_older_ignored:normalized.length,message:'忽略较旧的公开快照，原有线索与笔记未覆盖'};
+    const result=importRows(d,rows,true,baseline);result.leads_new=0;result.leads_changed=0;result.leads_older_ignored=0;result.leads_conflicts=0;
+    // Feed absence records only batch membership; it is never a withdrawal or a sale.
+    if(payload.schema_version===2)for(const entry of d.leads)entry.in_latest_feed=ids.has(entry.lead_id);
+    for(const lead of normalized){let entry=d.leads.find(x=>x.lead_id===lead.lead_id);
+      if(!entry){entry={lead_id:lead.lead_id,data:lead,history:[clone(lead)],conflicts:[],in_latest_feed:true};d.leads.push(entry);result.leads_new++;continue;}
+      if(entry.data.source_url!==lead.source_url||entry.data.source_item_id!==lead.source_item_id){fail('公开线索身份发生变化；同一 ID 不能改指其他来源');}
+      const delta=Date.parse(lead.retrieved_at)-Date.parse(entry.data.retrieved_at);if(delta<0){result.leads_older_ignored++;continue;}
+      if(delta===0&&JSON.stringify(lead)!==JSON.stringify(entry.data)){if(!entry.conflicts.some(x=>JSON.stringify(x)===JSON.stringify(lead)))entry.conflicts.push(clone(lead));entry.conflicts=entry.conflicts.slice(-20);result.leads_conflicts++;continue;}
+      if(delta>0){entry.data=lead;entry.history.push(clone(lead));entry.history=entry.history.slice(-20);entry.conflicts=[];result.leads_changed++;}
+      entry.in_latest_feed=true;
+    }
+    d.public_feed=metadata;sourceResult(d,'_public_feed',rows,result);return result;
+  }
   async function poll(d,body){
     if(body.source_id&&!d.sources.some(x=>x.id===body.source_id))fail('指定的数据源不存在');const results=[];
     for(const s of d.sources){if(body.source_id&&s.id!==body.source_id||!s.enabled||!s.authorized)continue;
@@ -276,11 +329,13 @@
     db=candidate;savedValue=serialized;
   }
   function refreshStorage(){let current;try{current=root.localStorage.getItem(KEY);}catch{fail('浏览器禁止读取本地存储，请允许此站点存储后重试。');}if(current===savedValue)return;if(!current)fail('浏览器数据已被其他页面清除；请重新加载页面后再操作。');let updated;try{updated=validateBackup(JSON.parse(current));}catch(e){fail('其他页面的浏览器数据无法读取，未覆盖现有记录：'+e.message);}db=updated;savedValue=current;}
-  function empty(){return {schema_version:SCHEMA,sequence:0,settings:settings(bootstrap.settings||{}),offers:[],user:{},snapshots:[],alerts:[],audit:[],sources:[],inbox:{},source_health:{},public_feed:publicMetadata(null)};}
+  function empty(){return {schema_version:SCHEMA,sequence:0,settings:settings(bootstrap.settings||{}),offers:[],user:{},snapshots:[],alerts:[],audit:[],sources:[],inbox:{},source_health:{},leads:[],lead_user:{},public_feed:publicMetadata(null)};}
   function validateBackup(input){
     if(!object(input)||input.schema_version!==SCHEMA)fail('备份格式或版本不兼容');
     const p=input.browser_backup===true?input.data:input;if(!object(p)||p.schema_version!==SCHEMA)fail('请选择本系统的浏览器 JSON 备份；房源导出文件不包含核验和笔记');
     const out=empty();out.settings=settings(p.settings||{});out.sources=sources(p.sources||[]);out.public_feed=publicMetadata(p.public_feed);
+    if(p.leads!==undefined){if(!Array.isArray(p.leads)||p.leads.length>10000)fail('备份公开线索数量不合法');const ids=new Set();for(const entry of p.leads){if(!object(entry)||typeof entry.in_latest_feed!=='boolean'||!Array.isArray(entry.history)||!Array.isArray(entry.conflicts)||entry.history.length>20||entry.conflicts.length>20)fail('备份公开线索结构不合法');const data=normalizeLead(entry.data),id=leadId(entry.lead_id);if(id!==data.lead_id||ids.has(id))fail('备份公开线索身份不一致或重复');ids.add(id);const check=x=>{const item=normalizeLead(x);if(item.lead_id!==id||item.source_url!==data.source_url||item.source_item_id!==data.source_item_id)fail('备份公开线索历史身份不一致');return item;};out.leads.push({lead_id:id,data,history:entry.history.map(check),conflicts:entry.conflicts.map(check),in_latest_feed:entry.in_latest_feed});}}
+    if(p.lead_user!==undefined){if(!object(p.lead_user))fail('备份线索笔记结构不正确');for(const [id,u] of Object.entries(p.lead_user)){leadId(id);if(!out.leads.some(x=>x.lead_id===id)||!object(u)||typeof u.saved!=='boolean'||typeof u.notes!=='string')fail('备份线索笔记关联不正确');out.lead_user[id]={saved:u.saved,notes:text(u.notes,16000),updated_at:u.updated_at?recordTime(u.updated_at):null};}}
     for(const k of ['offers','snapshots','alerts','audit'])if(!Array.isArray(p[k]))fail('备份缺少 '+k+' 数组');
     if(p.offers.length>10000||p.snapshots.length>50000||p.alerts.length>50000||p.audit.length>50000||!object(p.user)||!object(p.inbox)||!object(p.source_health))fail('备份结构或记录数量不合法');
     const ids=new Set(),keys=new Set();
@@ -328,6 +383,7 @@
     else if(path==='/api/check'){const item=offer(candidate,body.id),spec=bootstrap.knowledge.checks.find(x=>x.id===body.check_id),evidence=text(body.evidence,8000);if(!spec||!CHECK_STATUS.includes(body.status))fail('检查项或状态不正确');if(['通过','不适用','有风险'].includes(body.status)&&evidence.length<5)fail('请记录具体核验依据或不适用原因，至少5个字符；不能只打勾');if(body.status==='不适用'&&(!spec.allow_na||spec.id==='newhome'&&item.housing_type==='精装现房'))fail('这是一项必要核验，不能标为不适用');candidate.user[item.id].checks[spec.id]={status:body.status,evidence,updated_at:now()};audit(candidate,item.id,'核验记录',spec.title+'：'+body.status+'；'+evidence);result={ok:true};}
     else if(path==='/api/workflow'){const item=offer(candidate,body.id),stage=own(body,'stage')?body.stage:item.stage;if(!STAGES.includes(stage))fail('流程阶段不正确');if(['付定金','待签约','贷款办理','过户交房','已完成'].includes(stage)&&stage!==item.stage){const a=item.assessment,problems=[...a.unresolved,...a.failures,...a.pending,...a.critical];if(['付定金','待签约','贷款办理'].includes(stage)&&item.status!=='已确认在售')problems.push('需确认当前在售状态');if(item.status==='已下架')problems.push('房源已下架，需核实实际交易情况');if(item.data_issues.length)problems.push('来源存在信息冲突，请先复核并更新房源');if(a.stale)problems.push('房源观测已过期，请重新核实在售状态');if(problems.length)fail('系统流程提醒：关键核验尚未完成，暂不能推进。'+problems.slice(0,6).join('；'));if(stage==='已完成'&&!cleared(item.checks.find(x=>x.id==='delivery')||{}))fail('交房交接核验尚未完成');}const u=candidate.user[item.id];u.stage=stage;if(own(body,'notes'))u.notes=String(body.notes||'').slice(0,16000);if(own(body,'group_id'))u.group_id=text(body.group_id,100);audit(candidate,item.id,'流程/笔记',JSON.stringify({stage:u.stage,notes:u.notes,group_id:u.group_id}));result={ok:true};}
     else if(path==='/api/alert'){const a=candidate.alerts.find(x=>x.id===Number(body.id)),confirmation=text(body.confirmation,4000);if(!a)fail('提醒不存在');if(confirmation&&confirmation.length<5)fail('确认依据至少5个字符');a.read_at=now();if(confirmation)a.confirmation=confirmation;result={ok:true};}
+    else if(path==='/api/lead-followup'){const id=leadId(body.lead_id);if(!candidate.leads.some(x=>x.lead_id===id))fail('公开线索不存在');const prev=candidate.lead_user[id]||{saved:false,notes:'',updated_at:null};if(own(body,'saved')&&typeof body.saved!=='boolean'||own(body,'notes')&&typeof body.notes!=='string')fail('关注须为布尔值，笔记须为文本');candidate.lead_user[id]={saved:own(body,'saved')?body.saved:prev.saved,notes:own(body,'notes')?text(body.notes,16000):prev.notes,updated_at:now()};result={ok:true};}
     else if(path==='/api/settings'){candidate.settings=settings(body,candidate.settings);result=clone(candidate.settings);}
     else if(path==='/api/sources'){candidate.sources=sources(body.sources);result=clone(candidate.sources);}
     else if(path==='/api/inbox'){if(typeof body.filename!=='string'||!/^[A-Za-z0-9][A-Za-z0-9_-]{0,79}\.json$/.test(body.filename))fail('文件名须为英文字母/数字/横杠/下划线组成的 .json 文件名，不得含路径');const rows=decode(body.text,body.format||'json',true);if(own(candidate.inbox,body.filename)&&body.overwrite!==true)fail('同名文件已存在；确认替换后再勾选覆盖');const payload=JSON.stringify({schema_version:1,listings:rows});if(size(payload)>MAX_BYTES)fail('标准化后的文件超过2MB，请拆分');candidate.inbox[body.filename]=payload;result={filename:body.filename,row_count:rows.length,message:'文件仅保存在当前浏览器，配置来源并主动同步后才会导入。原始观测时间未改写。'};}
@@ -344,6 +400,7 @@
     if(method==='POST'){const operation=queue.then(()=>mutate(endpoint,bodyOf(options,endpoint))).then(clone);queue=operation.catch(()=>{});return operation;}
     if(method!=='GET')fail('仅支持 GET / POST');await queue;refreshStorage();
     if(endpoint==='/api/state')return clone(state());if(endpoint.startsWith('/api/offer/'))return clone(offer(db,decodeURIComponent(endpoint.slice('/api/offer/'.length))));
+    if(endpoint.startsWith('/api/lead/'))return clone(leadDetail(db,decodeURIComponent(endpoint.slice('/api/lead/'.length))));
     if(endpoint==='/api/digest')return digest();
     if(endpoint==='/api/export')return url.searchParams.get('format')==='csv'?csvExport():{schema_version:1,exported_at:now(),listings:list(db)};
     if(endpoint==='/api/backup')return {schema_version:SCHEMA,browser_backup:true,exported_at:now(),data:clone(db)};
