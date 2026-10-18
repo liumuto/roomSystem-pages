@@ -1,0 +1,367 @@
+{
+  "version": "0.3.0",
+  "settings": {
+    "budget_yuan": 750000,
+    "stretch_yuan": 800000,
+    "budget_basis": "purchase_total",
+    "estimated_fees_yuan": 20000,
+    "estimated_refresh_yuan": 30000,
+    "max_down_payment_yuan": 400000,
+    "stale_hours": 72,
+    "price_alert_yuan": 10000,
+    "price_alert_pct": 2.0,
+    "priority_communities": [],
+    "monitor_until": "2027-01-17",
+    "digest_hour": 9
+  },
+  "stages": [
+    "收集",
+    "已联系",
+    "待看房",
+    "已看房",
+    "议价",
+    "付定金",
+    "待签约",
+    "贷款办理",
+    "过户交房",
+    "已完成",
+    "已放弃"
+  ],
+  "statuses": [
+    "未知",
+    "平台展示",
+    "已确认在售",
+    "已下架",
+    "已成交"
+  ],
+  "knowledge": {
+    "version": "2026-10-17-v0.3",
+    "checks": [
+      {
+        "id": "region",
+        "title": "实址与行政归属",
+        "stage": "定金前",
+        "before_contract": true,
+        "allow_na": false,
+        "expires_days": 0,
+        "why": "平台标“吉安县”并不足以排除井开区，楼盘名相似也不能替代核实。",
+        "ask": "核对不动产权证坐落、实际小区入口和行政归属，确认在吉州区或吉安县且不在井开区、青原区。",
+        "evidence_hint": "证载坐落的脱敏记录、核实渠道、日期；地图距离只作辅助。",
+        "basis": "购房偏好与人工核验建议",
+        "source_url": null
+      },
+      {
+        "id": "layout",
+        "title": "三房双卫与改造合规",
+        "stage": "看房",
+        "before_contract": true,
+        "allow_na": false,
+        "expires_days": 0,
+        "why": "“三房”可能包含赠送/隔断房，两个卫生间也可能是违规改造。",
+        "ask": "确认三个可正常使用的卧室；核对两卫位置、排水通风、户型图与现场，确认并非随意改厕。",
+        "evidence_hint": "现场户型/视频编号，卫生间核验结果，必要时向物业/相关部门核验。",
+        "basis": "购房偏好与验房建议",
+        "source_url": null
+      },
+      {
+        "id": "property_nature",
+        "title": "住宅用途、土地性质与可交易资格",
+        "stage": "定金前",
+        "before_contract": true,
+        "allow_na": false,
+        "expires_days": 7,
+        "why": "名字像住宅不代表登记用途、土地性质和转让条件适合普通住宅按揭交易。",
+        "ask": "核对证载房屋用途、土地性质、剩余使用期限和限制条件，区分普通住宅、商办公寓、安置房、经济适用房等；有特殊资格或补缴要求的，向受理部门确认。",
+        "evidence_hint": "登记信息摘要、交易资格/限制核验记录及贷款受理意见；不要用中介广告替代。",
+        "basis": "登记与贷款风险核验建议；适用条件由当地受理部门确认",
+        "source_url": "https://fcj.nanjing.gov.cn/dtxx/zwdt/201803/t20180315_537459.html"
+      },
+      {
+        "id": "owners",
+        "title": "产权人与全部必要签字",
+        "stage": "定金前",
+        "before_contract": true,
+        "allow_na": false,
+        "expires_days": 7,
+        "why": "口头说“我能做主”不能替代产权、共有或授权审查。",
+        "ask": "核验产权人与卖方身份是否一致，是否存在共有、婚姻财产、继承或委托代理等情况；确认有权处分的人能签署。",
+        "evidence_hint": "登记查询结果、授权文件核验摘要、参与签署人员清单；避免保存完整身份证号码。",
+        "basis": "民法典及一般交易核验",
+        "source_url": "https://www.court.gov.cn/zixun/xiangqing/233181.html"
+      },
+      {
+        "id": "registry",
+        "title": "查封、抵押与居住权",
+        "stage": "定金前",
+        "before_contract": true,
+        "allow_na": false,
+        "expires_days": 7,
+        "why": "房屋有抵押不一定不能买，但必须有可执行的处理路径；登记信息有时效。",
+        "ask": "由权利人配合向登记机构核实产权、查封、抵押、异议登记、居住权等；签约和过户前再复查。",
+        "evidence_hint": "官方登记查询时间、结果摘要，解押或带押过户方案；不能仅用中介口头保证。",
+        "basis": "民法典；一般登记风险提示",
+        "source_url": "https://www.court.gov.cn/zixun/xiangqing/233181.html"
+      },
+      {
+        "id": "occupancy",
+        "title": "租约、实际占用与腾退",
+        "stage": "定金前",
+        "before_contract": true,
+        "allow_na": false,
+        "expires_days": 7,
+        "why": "拿到产权并不自动等于可以立即搬入。",
+        "ask": "确认是否出租、被他人占用、存在居住权或尚未腾退；有租约时核对优先购买权等适用问题与交付安排。",
+        "evidence_hint": "卖方书面披露、租约处理说明、约定腾退日期；必要时请本地律师审查。",
+        "basis": "民法典及交付风险核验",
+        "source_url": "https://www.court.gov.cn/zixun/xiangqing/233181.html"
+      },
+      {
+        "id": "loan",
+        "title": "贷款预评估与资金缺口",
+        "stage": "定金前",
+        "before_contract": true,
+        "allow_na": false,
+        "expires_days": 7,
+        "why": "40万元首付能力不等于已经获批贷款；二手房评估价偏低可能增加现金需求。",
+        "ask": "核对商贷/公积金/组合贷资格、银行评估价、可贷额、房龄与年限；约定贷款不足或不批的处理方式。",
+        "evidence_hint": "银行或公积金中心试算的日期、经办渠道、前提条件与预计额度；明确这不是最终批贷。",
+        "basis": "贷款条件必须由受理机构核实",
+        "source_url": null
+      },
+      {
+        "id": "escrow",
+        "title": "资金监管与解押路径",
+        "stage": "定金前",
+        "before_contract": true,
+        "allow_na": false,
+        "expires_days": 7,
+        "why": "不要将大额房款直接转入经纪人个人账户；不要无保障地替卖方垫资赎楼。",
+        "ask": "向吉安当地登记/住建部门及贷款银行确认可用的资金监管、解押或带押过户方案及具体账户。",
+        "evidence_hint": "监管协议及账户核验摘要，付款、解押、过户、放款顺序及异常退款路径。",
+        "basis": "2023年住建部、市场监管总局规范经纪服务意见的通用资金监管原则；吉安具体账户和办理路径仍需核实",
+        "source_url": "https://www.samr.gov.cn/zt/ndzt/2022n/scjgzjlswjjylzzcjchjxzc/zcwj/art/2023/art_f3f4bb43abda4338986166cc6a78f7a4.html"
+      },
+      {
+        "id": "parking",
+        "title": "停车能否长期落实",
+        "stage": "看房",
+        "before_contract": true,
+        "allow_na": false,
+        "expires_days": 7,
+        "why": "“有停车场”“车位充足”不等于未购车位的业主能稳定停车。",
+        "ask": "直接问物业：不买车位可否月租？候补多久？月费/押金多少？租约能否续租或承接？晚间20—22点实看。",
+        "evidence_hint": "物业答复日期与渠道、收费表、当前租位/排队情况及夜间实看记录。",
+        "basis": "用户硬性要求与实地核验建议",
+        "source_url": null
+      },
+      {
+        "id": "elevator",
+        "title": "电梯入户路径与运维",
+        "stage": "看房",
+        "before_contract": true,
+        "allow_na": false,
+        "expires_days": 0,
+        "why": "有电梯不代表从停车处到房门无台阶，也不代表维护正常。",
+        "ask": "实走停车到家路线，核对电梯停靠楼层、近期维保和故障、早晚高峰拥挤情况。",
+        "evidence_hint": "现场记录、电梯维保公示记录和物业答复。",
+        "basis": "用户硬性要求与居住体验建议",
+        "source_url": null
+      },
+      {
+        "id": "inspection",
+        "title": "漏水、结构与隐蔽工程",
+        "stage": "看房",
+        "before_contract": true,
+        "allow_na": false,
+        "expires_days": 0,
+        "why": "年轻化的新装修不能替代房屋状况检查，翻新可能遮盖问题。",
+        "ask": "检查天花/墙角/窗边渗漏、卫生间排水及防水、配电和水压；留意拆墙、封阳台等改动；必要时请专业验房。",
+        "evidence_hint": "验房清单、缺陷照片编号、整改范围与费用估算，雨后复看记录。",
+        "basis": "实地验房建议，不是线上鉴定",
+        "source_url": null
+      },
+      {
+        "id": "movein",
+        "title": "年轻化装修与整备预算",
+        "stage": "看房",
+        "before_contract": true,
+        "allow_na": false,
+        "expires_days": 0,
+        "why": "“精装”不等于风格年轻、不等于拎包入住；家具清空后可能暴露损坏。",
+        "ask": "索取近期全屋视频，判断墙地柜、厨卫是否需要大改，列明保留家具家电、清洁及修补项目。",
+        "evidence_hint": "你的主观风格结论、全屋视频日期、整备项目与预算；不要依靠效果图。",
+        "basis": "用户偏好与费用核验建议",
+        "source_url": null
+      },
+      {
+        "id": "amenities",
+        "title": "日常生活配套已营业",
+        "stage": "看房",
+        "before_contract": true,
+        "allow_na": false,
+        "expires_days": 0,
+        "why": "规划商业、围挡中的超市与实际可用配套不同。",
+        "ask": "从小区入口实走餐饮、生鲜/超市、药店，记录步行时间、营业时间、夜间环境；地图只做初筛。",
+        "evidence_hint": "实地路线和时间、店铺营业情况、是否需要驾车补给。",
+        "basis": "用户硬性要求与生活体验建议",
+        "source_url": null
+      },
+      {
+        "id": "taxfees",
+        "title": "税费、佣金及欠费清单",
+        "stage": "定金前",
+        "before_contract": true,
+        "allow_na": false,
+        "expires_days": 7,
+        "why": "挂牌价通常不是购房总成本，卖方净得价可能转移额外税费。",
+        "ask": "让经纪人列明各项税费、纳税义务人与合同承担方、佣金和服务费；核实满二/满五唯一认定材料、维修资金、物业及水电欠费。",
+        "evidence_hint": "税务/交易窗口核算或可核验的明细报价、住房套数与面积条件、费用承担约定。",
+        "basis": "契税全国规则；具体税基与承担由税务/合同核实",
+        "source_url": "https://www.mof.gov.cn/jrttts/202411/t20241119_3947865.htm"
+      },
+      {
+        "id": "contract",
+        "title": "合同、定金与交付条款",
+        "stage": "定金前",
+        "before_contract": true,
+        "allow_na": false,
+        "expires_days": 7,
+        "why": "不要把口头承诺当作保障；“贷款不批也不退定金”需要在签前审清。",
+        "ask": "明确标的、总价与费用、定金性质、违约责任、贷款不足处理、付款监管、腾退交付日、家具家电清单及隐瞒重大问题的责任。",
+        "evidence_hint": "完整合同及附件的脱敏摘要、律师/专业人士审核记录；签署前再次确认。",
+        "basis": "民法典及合同风险核验",
+        "source_url": "https://www.court.gov.cn/zixun/xiangqing/233181.html"
+      },
+      {
+        "id": "property",
+        "title": "物业服务、噪声与公共环境",
+        "stage": "复看",
+        "before_contract": false,
+        "allow_na": true,
+        "expires_days": 0,
+        "why": "小区建成年份或开发商品牌无法代替今天的物业体验。",
+        "ask": "分别在白天、夜间复看噪声、采光、楼道、垃圾点、地库积水、物业收费和电动车停放。",
+        "evidence_hint": "复看记录与物业收费表；临街、顶楼、低层按实际情况加查。",
+        "basis": "居住体验建议",
+        "source_url": null
+      },
+      {
+        "id": "school",
+        "title": "学区加分独立核验",
+        "stage": "复看",
+        "before_contract": false,
+        "allow_na": true,
+        "expires_days": 0,
+        "why": "学校近、宣传“学区房”不等于满足当年入学条件。",
+        "ask": "仅在你需要这项加分时，查当年教育部门招生范围及户籍、产权、实际居住、学位占用等适用条件。",
+        "evidence_hint": "当年官方公告及电话核实记录；未查证不得在系统标为学区已核实。",
+        "basis": "非强制加分；具体以当年教育部门为准",
+        "source_url": null
+      },
+      {
+        "id": "newhome",
+        "title": "新房已交付与现状核验",
+        "stage": "定金前",
+        "before_contract": false,
+        "allow_na": true,
+        "expires_days": 0,
+        "why": "接受精装新房不等于接受期房；样板间不能替代具体房号的交付状况。",
+        "ask": "选择新房时核对具体楼栋/房号、销售许可与合同、可交付日期、精装配置和交付手续；优先能现场看成品的已交付房。",
+        "evidence_hint": "许可证/交付资料核验摘要、具体房号实拍与配置清单；二手房说明不适用。",
+        "basis": "针对新房的附加核验建议",
+        "source_url": null
+      },
+      {
+        "id": "delivery",
+        "title": "交房、结清与交接",
+        "stage": "交房",
+        "before_contract": false,
+        "allow_na": false,
+        "expires_days": 0,
+        "why": "过户、放款和交房是不同节点，应按合同和监管安排执行。",
+        "ask": "按清单验收房屋及家具家电，记录钥匙门禁、水电燃气读数、物业/维修资金与欠费结清，处理户口迁出、停车租约等约定事项。",
+        "evidence_hint": "双方签署的交接清单、结清凭证、钥匙数量与实际交房日期；尾款按合同/监管安排执行。",
+        "basis": "一般交付核验建议",
+        "source_url": null
+      }
+    ],
+    "policies": [
+      {
+        "id": "deed-tax",
+        "title": "契税：140㎡不是旧的90㎡分界",
+        "verified_on": "2026-10-17",
+        "effective_from": "2024-12-01",
+        "scope": "全国政策，适用条件需个案核实",
+        "text": "家庭唯一或第二套住房，面积140㎡及以下适用1%优惠税率；超过140㎡，唯一住房1.5%、第二套2%。实际套数认定、计税依据和适用性由主管税务机关核实。本系统不自动认定你属于首套。",
+        "url": "https://www.mof.gov.cn/jrttts/202411/t20241119_3947865.htm",
+        "status": "已查到官方依据"
+      },
+      {
+        "id": "vat",
+        "title": "个人售房增值税：2026年规则已变化",
+        "verified_on": "2026-10-17",
+        "effective_from": "2026-01-01",
+        "scope": "全国个人销售住房政策；个体工商户中的一般纳税人不适用本公告",
+        "text": "财政部、税务总局公告2025年第17号：适用公告的个人购买不足2年的住房对外销售，按3%征收率全额缴纳增值税；满2年免征。注意税费法律义务人与合同约定承担者并非同一概念；不要沿用旧攻略的5%作为当前测算。",
+        "url": "https://tianjin.chinatax.gov.cn/11200000000/0300/030004/03000418/20251231101215452.shtml",
+        "status": "已查到税务官网原公告"
+      },
+      {
+        "id": "local-gjj",
+        "title": "公积金与组合贷款：按本人缴存情况到窗口试算",
+        "verified_on": "2026-10-17",
+        "effective_from": null,
+        "scope": "吉安/深圳个案办理",
+        "text": "缴存城市、家庭住房与贷款记录尚未提供。先确认本人缴存情况、余额、提取记录、收入、房龄、评估价与预审批；向吉安受理窗口核实现行异地贷款、组合贷、额度和年限。不能从40万元首付能力推定获批额度。",
+        "url": "",
+        "status": "现行受理口径待主管中心核实"
+      },
+      {
+        "id": "local-escrow",
+        "title": "吉安资金监管/带押过户流程待核实",
+        "verified_on": "2026-10-17",
+        "effective_from": null,
+        "scope": "吉州区、吉安县各受理点",
+        "text": "2023年住建部、市场监管总局意见要求，经纪机构不得违规收取、代收代管交易资金；除交易当事人明确要求外，购房款应纳入资金监管账户。吉州区和吉安县具体监管账户、支持带押过户的银行及办理顺序仍需向当地受理机构核实。",
+        "url": "https://www.samr.gov.cn/zt/ndzt/2022n/scjgzjlswjjylzzcjchjxzc/zcwj/art/2023/art_f3f4bb43abda4338986166cc6a78f7a4.html",
+        "status": "通用风险有依据，本地办理口径待核实"
+      }
+    ],
+    "channels": [
+      {
+        "name": "安居客·吉州区",
+        "url": "https://m.anjuke.com/ja/sale/jizhoub/",
+        "status": "人工浏览入口；自动采集未接通",
+        "note": "部分详情页可读，部分触发验证码；不能保证持续无人值守访问。"
+      },
+      {
+        "name": "贝壳·吉安",
+        "url": "https://m.ke.com/jian/",
+        "status": "人工浏览入口；自动采集未接通",
+        "note": "官方协议限制未经许可的自动获取。连接前需要核实数据使用权限。",
+        "terms_url": "https://m.ke.com/user/serviceProtocol"
+      },
+      {
+        "name": "房天下·吉安",
+        "url": "https://jian.esf.fang.com/",
+        "status": "候选渠道；尚未验证适配",
+        "note": "仅完成入口识别，未实现抓取适配器，未核实接口授权。"
+      },
+      {
+        "name": "吉安房产网",
+        "url": "https://m.jafc.com/",
+        "status": "候选渠道；尚未验证适配",
+        "note": "可作为本地补充线索；本轮部分页面无法读取，不能宣称已经接通。"
+      },
+      {
+        "name": "中介/业主授权数据",
+        "url": "",
+        "status": "可导入 CSV / JSON 或接授权 JSON 数据源",
+        "note": "只收集决策所需字段；不要导入身份证、银行卡或无授权的聊天记录。"
+      }
+    ]
+  },
+  "offers": [],
+  "sources": [],
+  "source_health": {}
+}
