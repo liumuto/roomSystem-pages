@@ -5,8 +5,8 @@ const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const wan=v=>v==null?'待补充':(Number(v)/10000).toLocaleString('zh-CN',{maximumFractionDigits:2});
 const yuan=v=>v==null?'尚未填写':Number(v).toLocaleString('zh-CN',{maximumFractionDigits:0});
 const fact=v=>v===true?'有 / 是':v===false?'无 / 否':'待核实';
-const dt=v=>v?new Date(v).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai',hour12:false}):'暂无';
-const day=v=>v?new Date(v).toLocaleDateString('zh-CN',{timeZone:'Asia/Shanghai'}):'暂无';
+const dt=v=>v?(/^\d{4}-\d\d-\d\d$/.test(String(v))?String(v):new Date(v).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai',hour12:false})):'暂无';
+const day=v=>v?(/^\d{4}-\d\d-\d\d$/.test(String(v))?String(v):new Date(v).toLocaleDateString('zh-CN',{timeZone:'Asia/Shanghai'})):'暂无';
 const safeURL=v=>/^https?:\/\//i.test(String(v||''))?esc(v):'';
 const browserMode=document.documentElement.dataset.runtime==='browser';
 const state={data:null,view:'overview',selected:new Set(),editId:null,detailId:null,toastTimer:null,sourceDirty:false,settingsDirty:false};

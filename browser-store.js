@@ -29,6 +29,15 @@
     return new Date(value).toISOString();
   }
   function recordTime(value){const out=time(value);if(Date.parse(out)>Date.now()+300000)fail('备份记录时间不能在未来');return out;}
+  function sourceDate(value,retrieved){
+    if(typeof value==='string'&&/^\d{4}-\d\d-\d\d$/.test(value)){
+      time(value+'T00:00:00Z'); // Validate the calendar without adding a time to the stored fact.
+      const retrievedDay=new Date(Date.parse(retrieved)+8*3600000).toISOString().slice(0,10);
+      if(value>retrievedDay)fail('来源日期不能晚于检索日期');
+      return value;
+    }
+    const out=recordTime(value);if(Date.parse(out)>Date.parse(retrieved)+300000)fail('来源时间不能晚于检索时间');return out;
+  }
   function numeric(v,label,min,max,integer=false) {
     if (typeof v === 'boolean' || v === null || String(v).trim() === '') fail(label+'须填写数值');
     const n=Number(v);
@@ -174,7 +183,8 @@
     if(!['search_index','direct_listing'].includes(raw.evidence_kind))fail('公开线索证据类型不支持');out.evidence_kind=raw.evidence_kind;
     out.source_domain=new URL(out.source_url).hostname;out.identity_scope=raw.identity_scope==='source_item'?'source_item':'search_entry';
     out.retrieved_at=recordTime(raw.retrieved_at);
-    for(const k of ['source_updated_at','source_published_at','discovered_at'])out[k]=raw[k]?recordTime(raw[k]):null;
+    for(const k of ['source_updated_at','source_published_at'])out[k]=raw[k]?sourceDate(raw[k],out.retrieved_at):null;
+    out.discovered_at=raw.discovered_at?recordTime(raw.discovered_at):null;
     for(const k of ['rooms','bathrooms'])out[k]=raw[k]===null||raw[k]===undefined||raw[k]===''?null:numeric(raw[k],k,0,30,true);
     out.price_wan=raw.price_wan===null||raw.price_wan===undefined||raw.price_wan===''?null:numeric(raw.price_wan,'公开广告价（万元）',0.000001,100000);
     out.area_m2=raw.area_m2===null||raw.area_m2===undefined||raw.area_m2===''?null:numeric(raw.area_m2,'公开建筑面积',0.000001,9999.999999);
