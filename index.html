@@ -10,27 +10,30 @@
   <div class="brand"><span class="brand-icon">⌂</span><div>购房观察台<small>JI'AN · HOME WATCH</small></div></div>
   <div class="side-label">我的购房工作台</div>
   <nav id="nav">
-    <button data-view="overview" class="active"><span>◫</span>房源观察</button>
+    <button data-view="overview" class="active" aria-current="page"><span aria-hidden="true">◫</span>找房线索</button>
+    <button data-view="library"><span aria-hidden="true">⌂</span>我的房源</button>
+    <button data-view="sources"><span aria-hidden="true">⌁</span>来源渠道</button>
     <button data-view="alerts"><span>◉</span>变化提醒 <b id="alert-badge">0</b></button>
     <button data-view="compare"><span>⇄</span>房源对比</button>
     <button data-view="finance"><span>▤</span>预算与月供</button>
     <button data-view="guide"><span>☷</span>购房避坑手册</button>
-    <button data-view="sources"><span>⌁</span>数据源与同步</button>
     <button data-view="digest"><span>▣</span>每日观察简报</button>
     <button data-view="settings"><span>⚙</span>筛选设置</button>
   </nav>
   <div class="side-bottom"><span class="live-dot"></span><span id="connection">连接中…</span><small>仅限吉州区、吉安县<br>排除井开区、青原区<br><span id="runtime-label">版本 0.3 · 个人本地版</span></small></div>
 </aside>
 <main>
-  <header class="topbar"><div><span class="eyebrow">从房源线索，到有依据的决定</span><h1 id="page-title">房源观察</h1></div><div class="top-actions"><span id="today"></span><button class="secondary" id="refresh">刷新数据</button><button class="primary" id="add-offer">＋ 收录房源</button></div></header>
-  <div id="global-notice" class="notice" role="status"></div><div id="browser-storage-notice" class="notice" hidden>个人房源、核验与笔记仅保存在当前浏览器，不会上传 GitHub。换设备、清理站点数据或使用无痕窗口可能丢失记录，请定期下载完整备份。<button class="text-btn" data-view="settings">前往备份</button></div>
+  <header class="topbar"><div><span class="eyebrow">吉安 · 个人购房工作台</span><h1 id="page-title">找房线索</h1></div><div class="top-actions"><span id="today"></span><button class="secondary" id="refresh">检查更新</button><button class="primary" id="add-offer">＋ 收录房源</button></div></header>
+  <div id="global-notice" class="notice compact-notice" role="status"></div>
   <section id="view-overview" class="view active">
-    <div class="research-hero"><div><span class="eyebrow">PUBLIC RESEARCH · 公开信息整理</span><h2>先找到可追问的线索，再判断值得看哪套</h2><p>只观察吉州区、吉安县的三房双卫。公开广告和搜索摘要都需要回到来源核实，检索成功不代表房屋仍在售。</p></div><div class="research-target"><span>全部购房支出目标</span><strong id="lead-budget-target">75<small>万元</small></strong><p>首付约40万，费用资金另计</p></div></div>
+    <div class="research-hero"><div><span class="eyebrow">吉州区 / 吉安县 · 三房双卫</span><h2>把值得追问的房子，先留下来</h2><p>按预算与区域筛选，关注后查看原文和待问事项。广告线索的当前在售情况仍需确认。</p><div id="lead-summary" class="lead-summary"></div></div><div class="research-target"><span id="lead-budget-label">预计购房总支出目标</span><strong id="lead-budget-target">75<small>万元</small></strong><button class="text-btn" data-view="settings">调整预算与偏好 →</button></div></div>
     <div class="research-status" id="research-status" role="status"></div>
-    <div class="section-heading"><div><h2>公开信息线索 <span id="lead-result-count"></span></h2><p>列表页中的线索可能指向同一小区的不同房屋，不据此合并报价或计算降价。</p></div><button class="secondary" data-view="sources">查看来源与运行记录</button></div>
-    <div class="filters lead-filters"><input id="lead-search" placeholder="搜索公开线索、小区或来源…" aria-label="搜索公开线索"><select id="lead-filter" aria-label="公开线索筛选"><option value="candidate">候选：隐藏广告已不符项</option><option value="target">预算目标内</option><option value="saved">我的关注</option><option value="all">全部（含历史与排除项）</option></select><select id="lead-region" aria-label="公开线索区域"><option value="">全部区域</option><option>吉州区</option><option>吉安县</option><option value="unknown">行政归属待核实</option></select></div>
+    <div class="lead-tabs" id="lead-tabs" aria-label="线索快捷分类"></div>
+    <div class="filter-panel"><div class="filters lead-filters" id="lead-filter-controls"><input id="lead-search" placeholder="搜索小区、平台或跟进笔记" aria-label="搜索公开线索"><select id="lead-filter" aria-label="公开线索筛选"><option value="candidate">全部候选</option><option value="target">预算目标内</option><option value="pending">待补资料</option><option value="saved">我的关注</option><option value="all">全部记录（含历史与不符项）</option></select><select id="lead-region" aria-label="公开线索区域"><option value="">全部区域</option><option>吉州区</option><option>吉安县</option><option value="unknown">行政归属待核实</option></select><select id="lead-platform" aria-label="来源平台"><option value="">全部平台</option></select><select id="lead-kind" aria-label="信息类型"><option value="">全部信息类型</option><option value="direct_listing">公开页面线索</option><option value="search_index">搜索摘要线索</option></select><select id="lead-sort" aria-label="线索排序"><option value="recent">最近检索优先</option><option value="price-asc">广告价从低到高</option><option value="price-desc">广告价从高到低</option><option value="updated">来源更新时间优先（未知在后）</option></select><button id="lead-reset" class="text-btn">清空筛选</button></div><div class="results-line"><span id="lead-result-count" aria-live="polite"></span><button class="text-btn mobile-filter-toggle" id="lead-filter-toggle" aria-expanded="false" aria-controls="lead-filter-controls">筛选与排序</button><span>同小区的多条广告可能重复，条数不代表独立房屋数</span></div></div>
     <div id="lead-cards" class="lead-cards"></div>
-    <div class="section-divider"><span>我的私人决策记录</span></div>
+  </section>
+  <section id="view-library" class="view">
+    <div class="notice" id="browser-storage-notice" hidden>个人房源、关注和笔记仅在当前浏览器保存。换设备或清理站点数据前，请下载完整备份。<button class="text-btn" data-view="settings">备份与恢复 →</button></div>
     <div class="summary-grid" id="stats"></div>
     <div class="strategy-strip"><div><span class="pill green">当前策略</span><strong>先核实，再比较；不因低价跳过风险</strong><p id="strategy-text"></p></div><button id="import-open" class="secondary">导入 CSV / JSON</button></div>
     <div class="section-heading"><div><h2>我的房源池 <span id="result-count"></span></h2><p>自行核实并收录具体房屋后，在这里比较、记录产权核验与购房流程。公开线索不会自动加入私人房源池。</p></div></div>
@@ -38,7 +41,7 @@
     <div id="cards" class="cards"></div><div id="duplicate-notice"></div>
   </section>
   <section id="view-alerts" class="view"><div class="section-heading"><div><h2>发生了什么变化</h2><p>只比较同一来源的同一房源。跨平台低价不算降价；无法读取不算下架，下架也不算成交。</p></div></div><div id="alerts-list"></div></section>
-  <section id="view-compare" class="view"><div class="section-heading"><div><h2>把候选放在同一张桌上</h2><p>在房源卡片勾选2—4条进行对比，未知字段不会自动补齐。</p></div></div><div id="compare-table"></div></section>
+  <section id="view-compare" class="view"><div class="section-heading"><div><h2>把候选放在同一张桌上</h2><p>在“我的房源”卡片勾选2—4条进行对比，未知字段不会自动补齐。</p></div></div><div id="compare-table"></div></section>
   <section id="view-finance" class="view">
     <div class="two-col"><div class="panel"><span class="eyebrow">SCENARIO · 情景测算</span><h2>买得起，也要留得住现金</h2><p class="muted">按75万元全部购房支出目标演示：70万元房价、40万元首付，另预留5万元费用和整备。3%利率、2万元税费杂费、3万元整备费只是可编辑假设，不是银行报价或当地费用标准。</p>
     <form id="finance-form" class="form-grid">
@@ -56,7 +59,19 @@
     <div class="notice amber">税费法定义务人与合同约定的实际承担方应分别核对。不能把“满二”“满五唯一”广告当作证明；不能先扣除尚未确认可用的公积金提取额。</div>
   </section>
   <section id="view-guide" class="view"><div class="section-heading"><div><h2>把避坑变成每套房的必做动作</h2><p>下列是核验辅助，不代替登记查询、验房、贷款审批或律师审查。具体房源请进入“核验与跟进”记录依据。</p></div></div><div id="policy-cards" class="policy-grid"></div><div id="guide-list"></div></section>
-  <section id="view-sources" class="view"><div class="section-heading"><div><h2>数据从哪里来，最近是否真的成功</h2><p>自动同步框架与公开平台适配是两回事。当前没有预置的贝壳、安居客无人值守爬虫。</p></div><button id="sync-public-feed" class="secondary" hidden>检查共享房源更新</button><button id="poll" class="primary">同步已启用的授权源</button></div><div id="public-feed-health" hidden></div><div id="source-health"></div><div class="source-tools"><button id="add-source" class="primary">＋ 添加数据源</button><button id="upload-source" class="secondary">上传 / 更新监控文件</button><span class="hint">不需要先编辑JSON配置。数据须来自你有权使用的来源。</span></div><div id="channels" class="policy-grid"></div><details class="panel"><summary><strong>高级：直接编辑授权源配置</strong></summary><p class="muted" id="source-mode-help">支持 data/inbox 下的 JSON 文件，或有权限使用的公网 HTTPS JSON。每条记录必须携带原始 observed_at。文件更新后只会在同步时检测，旧时间不会被改成现在。远程令牌放环境变量，不写进 URL。连续失败3次自动暂停，手动同步可重试。</p><textarea id="sources-editor" rows="13" spellcheck="false" aria-label="JSON数据源配置"></textarea><div class="button-row"><button id="source-example" class="secondary">填入未启用的文件源示例</button><button id="save-sources" class="primary">保存配置</button></div><p class="hint">声明授权只是配置要求，不代替取得真实权限。空源、缺失记录、抓取失败均不会把房源自动标成成交或下架。</p></details></section>
+  <section id="view-sources" class="view">
+    <div class="section-heading"><div><h2>来源渠道</h2><p>先看已取得的线索，再选择渠道继续查找。入口不代表已接通自动采集。</p></div><button id="sync-public-feed" class="secondary" hidden>检查公开数据更新</button></div>
+    <div id="public-feed-health" hidden></div>
+    <div class="section-heading"><div><h2>继续找房与做功课</h2><p>房源平台查广告，社交内容找经验，本地渠道补线索。请回到原文确认日期、区域与具体房屋。</p></div></div>
+    <div id="research-channels"></div>
+    <details class="panel personal-sources"><summary><strong>我的导入与授权来源</strong><span class="hint">粘贴、文件与已获授权的数据</span></summary>
+      <p>这些配置只管理你自己添加的来源，和上方公开研究分开。</p>
+      <button id="poll" class="secondary">同步已启用的授权源</button><div id="source-health"></div>
+      <div class="source-tools"><button id="add-source" class="primary">＋ 添加数据源</button><button id="upload-source" class="secondary">上传 / 更新监控文件</button></div>
+      <div id="channels" class="policy-grid"></div>
+      <details class="panel"><summary><strong>高级：编辑授权源配置</strong></summary><p class="muted" id="source-mode-help">支持 data/inbox 下的 JSON 文件，或有权限使用的公网 HTTPS JSON。每条记录必须携带原始 observed_at。文件更新后只会在同步时检测，旧时间不会被改成现在。远程令牌放环境变量，不写进 URL。连续失败3次自动暂停，手动同步可重试。</p><textarea id="sources-editor" rows="13" spellcheck="false" aria-label="JSON数据源配置"></textarea><div class="button-row"><button id="source-example" class="secondary">填入未启用的文件源示例</button><button id="save-sources" class="primary">保存配置</button></div><p class="hint">声明授权只是配置要求，不代替取得真实权限。空源、缺失记录、抓取失败均不会把房源自动标成成交或下架。</p></details>
+    </details>
+  </section>
   <section id="view-digest" class="view"><div class="section-heading"><div><h2 id="digest-title">每天09:00，集中看真正需要行动的事</h2><p id="digest-help">仅在你运行服务期间生成；电脑休眠、关机或网络断开不会继续采集。邮件只有显式配置并启用 SMTP 后才会发送。</p></div><button class="primary" id="generate-digest">重新生成今日简报</button></div><pre id="digest-body" class="panel digest"></pre></section>
   <section id="view-settings" class="view"><div class="two-col"><div class="panel"><h2>你来决定筛选边界</h2><p class="muted">75万元尽量覆盖房款、税费佣金和整备；80万元仅为可调整的弹性观察线。40万元为首付能力，额外费用资金另计。区划和三房双卫等要求不会被评分抵消。</p><form id="settings-form" class="form-grid"><label class="wide">预算比较口径<select name="budget_basis"><option value="purchase_total">预计购房总支出（房价＋费用＋整备）</option><option value="listing_price">仅挂牌房价</option></select></label><label>税费佣金杂费预留 / 万元<input name="estimated_fees_wan" type="number" step="0.1" min="0" required></label><label>整备家具家电预留 / 万元<input name="estimated_refresh_wan" type="number" step="0.1" min="0" required></label><p class="hint wide">2万费用、3万整备为可编辑预留，未核算的费用可能更高；这是预算筛选依据，不是税费报价。备用金在月供测算中另计。</p><label>目标预算 / 万元<input name="budget_wan" type="number" step="0.1" min="1" required></label><label>暂定弹性观察线 / 万元<input name="stretch_wan" type="number" step="0.1" min="1" required></label><label>首付能力上限 / 万元<input name="down_wan" type="number" step="0.1" min="1" required></label><label>观测过期阈值 / 小时<input name="stale_hours" type="number" min="1" max="720" required></label><label>报价下降提醒 / 万元<input name="drop_wan" type="number" step="0.1" min="0.1" required></label><label>或下降比例 / %<input name="price_alert_pct" type="number" step="0.1" min="0.1" max="100" required></label><label>每日简报时间 / 小时（UTC+8）<input name="digest_hour" type="number" min="0" max="23" required></label><label>自动观察结束日期（含当天）<input name="monitor_until" type="date" required></label><label class="wide">优先小区（每行一个；未做地图半径判断）<textarea name="priority_communities" rows="4"></textarea></label><button class="primary wide" type="submit">保存偏好</button></form></div><div class="panel"><h2>导出与备份</h2><p id="backup-help">CSV / JSON 是房源明细，不等于完整恢复备份。SQLite备份包含报价历史、核验依据和笔记；数据源配置还需另备份 data/sources.json。</p><div class="button-stack"><a class="secondary" href="/api/export?format=csv">导出房源 CSV</a><a class="secondary" href="/api/export?format=json">导出房源 JSON</a><a class="primary" href="/api/backup"><span id="backup-label">下载完整数据库备份</span></a><button class="secondary" id="restore-browser" hidden>恢复浏览器完整备份</button></div><hr><h3>默认隐私边界</h3><p class="muted" id="privacy-help">不要求平台账号、Cookie、身份证或银行流水。默认所有资料在本机 data/ 下。不要直接将此开发服务器开放公网。服务器部署用 SSH 本地转发；要开放多人访问需另做认证、TLS和安全审计。</p><h3>当前版本边界</h3><p class="muted">未提供自动看房预约、自动联系中介、成交估值、图像装修识别、地图步行圈或线上产权查询。资料缺失会明确显示，不会让模型补全事实。</p></div></div></section>
   <footer>报价线索 ≠ 实际成交 · 偏好评分 ≠ 安全认证 · 关键事实以官方查询、现场核验和书面约定为准</footer>

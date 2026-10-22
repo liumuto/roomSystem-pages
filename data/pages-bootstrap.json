@@ -35,7 +35,7 @@
     "已成交"
   ],
   "knowledge": {
-    "version": "2026-10-17-v0.3",
+    "version": "2026-10-22-v0.5",
     "checks": [
       {
         "id": "region",
@@ -325,6 +325,153 @@
         "text": "2023年住建部、市场监管总局意见要求，经纪机构不得违规收取、代收代管交易资金；除交易当事人明确要求外，购房款应纳入资金监管账户。吉州区和吉安县具体监管账户、支持带押过户的银行及办理顺序仍需向当地受理机构核实。",
         "url": "https://www.samr.gov.cn/zt/ndzt/2022n/scjgzjlswjjylzzcjchjxzc/zcwj/art/2023/art_f3f4bb43abda4338986166cc6a78f7a4.html",
         "status": "通用风险有依据，本地办理口径待核实"
+      }
+    ],
+    "research_channels": [
+      {
+        "id": "anjuke",
+        "name": "安居客",
+        "category": "房源平台",
+        "domains": [
+          "anjuke.com"
+        ],
+        "url": "https://jian.anjuke.com/",
+        "status": "公开检索入口",
+        "queries": [
+          "site:anjuke.com {region} 二手房 三室 两卫 精装",
+          "site:anjuke.com {region} 二手房 60万 70万 电梯"
+        ],
+        "use_for": "补充小区、广告价、面积和户型；列表索引与单套详情分别记录。",
+        "access_note": "入口不代表持续采集已接通。详情受限时保留已读索引证据，不推断当前在售。"
+      },
+      {
+        "id": "fang",
+        "name": "房天下",
+        "category": "房源平台",
+        "domains": [
+          "fang.com"
+        ],
+        "url": "https://m.fang.com/esf/jian/",
+        "status": "公开检索入口",
+        "queries": [
+          "site:fang.com {region} 二手房 三居 精装修 总价",
+          "site:m.fang.com/esf/jian {region} 三室 70万"
+        ],
+        "use_for": "查找独立广告详情、原始发布日期和装修表述，交叉检查标题与参数冲突。",
+        "access_note": "移动版与公开索引可作替代入口；保留旧广告日期，发现价格或装修冲突时明确待核。"
+      },
+      {
+        "id": "beike",
+        "name": "贝壳 / 链家",
+        "category": "房源平台",
+        "domains": [
+          "ke.com",
+          "lianjia.com"
+        ],
+        "url": "https://m.ke.com/jian/",
+        "status": "公开检索入口",
+        "queries": [
+          "site:ke.com {region} 二手房 三室 两卫",
+          "site:lianjia.com {region} 二手房 精装 70万"
+        ],
+        "use_for": "补充房源广告与小区背景；贝壳、链家同一广告不重复当成独立房源。",
+        "access_note": "遇到验证码或需要账号时改查公开搜索索引；正常登录查看需由用户自己的可用会话完成。"
+      },
+      {
+        "id": "58",
+        "name": "58 同城",
+        "category": "本地渠道",
+        "domains": [
+          "58.com"
+        ],
+        "url": "https://ja.58.com/house.shtml",
+        "status": "公开检索入口",
+        "queries": [
+          "site:58.com {region} 二手房 个人 三室",
+          "site:58.com {region} 精装房 出售 70万"
+        ],
+        "use_for": "发现本地业主与经纪广告，核对小区和区域后再整理最小事实。",
+        "access_note": "仅有电话、泛化标题或无法确定小区的内容不能变成完整房源；不复制公开联系信息。"
+      },
+      {
+        "id": "local",
+        "name": "房大全 / 吉安本地房产信息",
+        "category": "本地渠道",
+        "domains": [
+          "fangdaquan.com",
+          "cityhouse.com.cn",
+          "jafc.com",
+          "jianfc.com",
+          "jxjaw.cn"
+        ],
+        "url": "https://jian.fangdaquan.com/ershoufang/",
+        "status": "公开检索入口",
+        "queries": [
+          "site:jian.fangdaquan.com {region} 二手房 三室",
+          "{region} 业主 个人出售 精装修 电梯房"
+        ],
+        "use_for": "从房大全等本地入口补充大型平台之外的房源，交叉核对发布时间、区划和来源身份。",
+        "access_note": "房大全是本轮已读入口；城市房产及旧本地站仍需逐次确认，未取得房源不算接入。只有月日或多年旧帖时不补写当年日期。"
+      },
+      {
+        "id": "xiaohongshu",
+        "name": "小红书",
+        "category": "社交经验",
+        "domains": [
+          "xiaohongshu.com",
+          "xhslink.com"
+        ],
+        "url": "https://www.xiaohongshu.com/",
+        "status": "手动查看入口",
+        "queries": [
+          "site:xiaohongshu.com {region} 买房 小区 业主",
+          "site:xiaohongshu.com {region} 卖房 二手房 装修"
+        ],
+        "use_for": "补充居住体验、小区环境与业主线索；只有明确房源事实才进入房源列表。",
+        "access_note": "先查公开索引。需登录的帖子可由用户正常查看后提供有权使用的片段；不把经验帖或评论计为房源。"
+      },
+      {
+        "id": "zhihu",
+        "name": "知乎",
+        "category": "社交经验",
+        "domains": [
+          "zhihu.com"
+        ],
+        "url": "https://www.zhihu.com/",
+        "status": "公开检索入口",
+        "queries": [
+          "site:zhihu.com {region} 买房 小区",
+          "site:zhihu.com 吉安 二手房 装修 物业"
+        ],
+        "use_for": "整理区域、小区与购房经验，生成看房时需要核实的问题。",
+        "access_note": "观点与旧经验不当作现行政策、房源报价或在售证明；涉及具体交易规则时继续查官方依据。"
+      },
+      {
+        "id": "official",
+        "name": "吉安官方核验渠道",
+        "category": "官方核验",
+        "domains": [
+          "jian.gov.cn"
+        ],
+        "url": "https://www.jian.gov.cn/",
+        "status": "公开检索入口",
+        "queries": [
+          "{region} 政府 不动产登记 二手房 资金监管",
+          "{region} 住房 城乡建设 商品房 销售许可"
+        ],
+        "use_for": "查区划、登记办理、监管和销售许可的官方入口，辅助房源核验。",
+        "access_note": "官方办事信息不计为待售房源；核对发文单位、适用地区和生效日期。"
+      },
+      {
+        "id": "authorized",
+        "name": "业主 / 中介授权资料",
+        "category": "授权导入",
+        "domains": [],
+        "url": "",
+        "status": "授权导入",
+        "queries": [],
+        "use_for": "导入用户自己取得或经授权提供的 CSV、JSON 与房源描述，补足公开渠道缺失字段。",
+        "access_note": "先确认实际观测时间、可使用范围和单套身份；不要导入身份证、银行卡或无授权聊天记录。"
       }
     ],
     "channels": [
