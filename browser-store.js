@@ -10,6 +10,9 @@
   const STAGES = ['收集','已联系','待看房','已看房','议价','付定金','待签约','贷款办理','过户交房','已完成','已放弃'];
   const STATUSES = ['未知','平台展示','已确认在售','已下架','已成交'];
   const CHECK_STATUS = ['待核实','通过','有风险','不适用','待复核'];
+  const LEAD_PROGRESS = ['new','contact','visit','visited','hold','rejected'];
+  const LEAD_VERIFICATION = ['elevator','double_bathrooms','parking_usable','move_in_ready','for_sale'];
+  const LEAD_LOCAL_SOURCE = '公开线索转入';
   const DEFAULTS = {budget_yuan:750000,stretch_yuan:800000,max_down_payment_yuan:400000,budget_basis:'purchase_total',estimated_fees_yuan:20000,estimated_refresh_yuan:30000,stale_hours:72,price_alert_yuan:10000,price_alert_pct:2,priority_communities:[],monitor_until:'2027-01-17',digest_hour:9};
   const ALIASES = {'来源':'source','来源名称':'source','房源编号':'source_item_id','来源房源编号':'source_item_id','详情链接':'url','来源链接':'url','小区':'community','小区名称':'community','区域':'district','总价万元':'price_wan','总价（万元）':'price_wan','价格元':'price_yuan','面积㎡':'area_m2','建筑面积':'area_m2','房数':'rooms','卫数':'bathrooms','电梯':'elevator','停车可落实':'parking_usable','年轻化装修':'young_style','少量整理入住':'move_in_ready','生活配套':'amenities','学区已核实':'school_verified','位于排除区域':'in_excluded_zone','状态':'status','观测时间':'observed_at','原始描述':'raw_text','来源类型':'source_kind','地址':'address','楼层':'floor','房源类别':'housing_type','信息问题':'data_issues'};
   let db, bootstrap, queue = Promise.resolve(), initialized, feedReadError, savedValue;
@@ -65,6 +68,8 @@
     return u.href.replace(/\/(?=\?|$)/,'');
   }
   function identity(d) {
+    // A saved search entry is a local candidate, not a platform's single-home ID.
+    if(d.source===LEAD_LOCAL_SOURCE&&/^lead:[A-Za-z0-9][A-Za-z0-9:_-]{0,159}$/.test(d.source_item_id))return 'item:'+d.source+':'+d.source_item_id;
     const u=d.url?new URL(d.url):null, host=u?u.hostname:'';
     if (/(^|\.)(ke|lianjia)\.com$/.test(host)) {
       const m=u.pathname.match(/\/ershoufang\/(\d+)/); if(m)return (/(^|\.)lianjia\.com$/.test(host)?'lianjia:':'beike:')+m[1];
@@ -176,6 +181,57 @@
   function offer(d,id){const item=list(d).find(x=>x.id===id);if(!item)fail('房源不存在');item.history=d.snapshots.filter(x=>x.offer_id===id).sort((a,b)=>Date.parse(a.observed_at)-Date.parse(b.observed_at)||a.id-b.id).map(x=>({id:x.id,observed_at:x.observed_at,captured_at:x.captured_at,data:clone(x.data)}));item.audit=d.audit.filter(x=>x.offer_id===id).slice(-100).reverse();return item;}
   function duplicates(offers){const out=[];for(let i=0;i<offers.length;i++)for(let j=i+1;j<offers.length&&out.length<100;j++){const a=offers[i],b=offers[j];if(names(a.community)&&names(a.community)===names(b.community)&&a.area_m2&&b.area_m2&&Math.abs(a.area_m2-b.area_m2)<=2&&a.rooms===b.rooms)out.push({left:a.id,right:b.id,community:a.community,reason:'同小区、同房数、面积差≤2㎡；只提示疑似重复，不自动合并，跨平台报价不当成降价。'});}return out;}
   function leadId(value){if(typeof value!=='string'||!/^[A-Za-z0-9][A-Za-z0-9:_-]{0,159}$/.test(value)||['constructor','prototype','__proto__'].includes(value))fail('公开线索 ID 不合法');return value;}
+  function leadFollowup(raw={}){
+    if(!object(raw))fail('线索跟进须为对象');
+    const out={saved:false,notes:'',updated_at:null,progress:'new',tags:[],next_followup_at:null,visit_at:null,reject_reason:'',verification:{...Object.fromEntries(LEAD_VERIFICATION.map(k=>[k,null])),note:'',updated_at:null},linked_offer_id:null};
+    if(own(raw,'saved')){if(typeof raw.saved!=='boolean')fail('关注须为布尔值');out.saved=raw.saved;}
+    for(const [key,max] of [['notes',16000],['reject_reason',2000]])if(own(raw,key)){if(typeof raw[key]!=='string')fail('跟进笔记和不考虑原因须为文本');out[key]=text(raw[key],max);}
+    if(own(raw,'progress')){if(!LEAD_PROGRESS.includes(raw.progress))fail('线索跟进进度不正确');out.progress=raw.progress;}
+    if(own(raw,'tags')){if(!Array.isArray(raw.tags)||raw.tags.length>8||raw.tags.some(x=>typeof x!=='string'||!x.trim()||x.trim().length>24))fail('人工标签最多8个，每个须为1至24字文本');out.tags=[...new Set(raw.tags.map(x=>x.trim()))];}
+    for(const key of ['next_followup_at','visit_at'])if(own(raw,key))out[key]=raw[key]===null?null:time(raw[key]);
+    if(raw.updated_at!==undefined&&raw.updated_at!==null)out.updated_at=recordTime(raw.updated_at);
+    if(own(raw,'verification')){
+      const v=raw.verification;if(!object(v)||Object.keys(v).some(k=>![...LEAD_VERIFICATION,'note','updated_at'].includes(k)))fail('私人核实字段不正确');
+      for(const key of LEAD_VERIFICATION)if(own(v,key)){if(v[key]!==null&&typeof v[key]!=='boolean')fail('私人核实须为是、否或待核实');out.verification[key]=v[key];}
+      if(own(v,'note')){if(typeof v.note!=='string')fail('私人核实来源备注须为文本');out.verification.note=text(v.note,8000);}
+      if(v.updated_at!==undefined&&v.updated_at!==null)out.verification.updated_at=recordTime(v.updated_at);
+      if(LEAD_VERIFICATION.some(k=>out.verification[k]!==null)&&(out.verification.note.length<5||!out.verification.updated_at))fail('私人核实结论须有至少5字的来源备注和核实记录时间');
+    }
+    if(raw.linked_offer_id!==undefined&&raw.linked_offer_id!==null){if(typeof raw.linked_offer_id!=='string'||!/^[A-Za-z0-9][A-Za-z0-9_-]{0,79}$/.test(raw.linked_offer_id)||['constructor','prototype','__proto__'].includes(raw.linked_offer_id))fail('关联房源 ID 不正确');out.linked_offer_id=raw.linked_offer_id;}
+    return out;
+  }
+  function updateLeadFollowup(previous,patch){
+    const allowed=['lead_id','saved','notes','progress','tags','next_followup_at','visit_at','reject_reason','verification','expected_followup'];
+    if(Object.keys(patch).some(k=>!allowed.includes(k)))fail('线索跟进包含不可修改的字段');
+    const before=leadFollowup(previous);
+    if(own(patch,'expected_followup')&&JSON.stringify(leadFollowup(patch.expected_followup))!==JSON.stringify(before))fail('这条线索的跟进已在其他页面更新，请重新打开详情后再保存；本次修改未保存。');
+    const merged={...before,...patch,updated_at:now()};delete merged.lead_id;delete merged.expected_followup;
+    if(own(patch,'verification')){
+      if(!object(patch.verification)||Object.keys(patch.verification).some(k=>![...LEAD_VERIFICATION,'note'].includes(k)))fail('私人核实包含不可修改的字段');
+      merged.verification={...before.verification,...patch.verification};
+      if([...LEAD_VERIFICATION,'note'].some(k=>merged.verification[k]!==before.verification[k]))merged.verification.updated_at=now();
+    }
+    return leadFollowup(merged);
+  }
+  function preferences(patch={},base={lead_filters:{},lead_layout:'list'}){
+    if(!object(patch)||Object.keys(patch).some(k=>!['lead_filters','lead_layout'].includes(k)))fail('常用筛选设置不正确');
+    const out=clone(base);
+    if(own(patch,'lead_layout')){if(!['list','cards','community'].includes(patch.lead_layout))fail('线索展示方式不正确');out.lead_layout=patch.lead_layout;}
+    if(own(patch,'lead_filters')){
+      const input=patch.lead_filters,filters={},enums={filter:['candidate','target','pending','saved','all','rejected'],sort:['recent','price-asc','price-desc','updated','published','complete'],kind:['','search_index','direct_listing'],progress:['',...LEAD_PROGRESS],verification:['','personal']};
+      const strings=['q','filter','region','platform','kind','sort','progress','tag','bathrooms','elevator','parking','moveIn','freshness','verification'],numbers=['priceMin','priceMax','areaMin','areaMax'];
+      if(!object(input)||Object.keys(input).some(k=>![...strings,...numbers].includes(k)))fail('常用筛选包含不支持的条件');
+      for(const [key,value] of Object.entries(input)){
+        if(typeof value!=='string'||value.length>(key==='q'?200:key==='platform'?253:100))fail('筛选条件须为长度适当的文本');
+        const cleaned=value.trim();if(enums[key]&&!enums[key].includes(cleaned))fail('筛选条件取值不正确：'+key);
+        if(numbers.includes(key)&&cleaned!=='')numeric(cleaned,key,0,key.startsWith('price')?100000:10000);
+        filters[key]=cleaned;
+      }
+      for(const prefix of ['price','area'])if(filters[prefix+'Min']&&filters[prefix+'Max']&&Number(filters[prefix+'Min'])>Number(filters[prefix+'Max']))fail('筛选下限不能大于上限');
+      out.lead_filters=filters;
+    }
+    return out;
+  }
   function normalizeLead(raw){
     if(!object(raw))fail('公开线索须为对象');
     const out={lead_id:leadId(raw.lead_id),source_url:canon(raw.source_url)};if(!out.source_url)fail('公开线索缺少来源链接');
@@ -206,9 +262,19 @@
     const questions=[...new Set([...failures,...lead.uncertainties,...pending,'请确认这是同一套住宅、目前仍可出售，当前业主报价及全部费用分别是多少？','请提供近期全屋视频、卫生间和厨房实拍；确认产权、抵押查封与银行可贷额度。'])];
     return {failures,pending,budget_band,budget_basis:cfg.budget_basis,estimated_purchase_total_yuan:total,budget_compare_yuan:compare,next_checks:questions,status:failures.length?'广告信息不符':'待核实线索'};
   }
-  function leads(d){return d.leads.map(entry=>({...clone(entry.data),in_latest_feed:entry.in_latest_feed,conflict:entry.conflicts.length>0,history_count:entry.history.length,followup:clone(d.lead_user[entry.lead_id]||{saved:false,notes:'',updated_at:null}),assessment:leadAssessment(entry.data,d.settings)})).sort((a,b)=>Number(a.assessment.failures.length>0)-Number(b.assessment.failures.length>0)||Number(b.followup.saved)-Number(a.followup.saved)||Number(a.price_wan===null)-Number(b.price_wan===null)||Date.parse(b.retrieved_at)-Date.parse(a.retrieved_at));}
+  function leads(d){return d.leads.map(entry=>({...clone(entry.data),in_latest_feed:entry.in_latest_feed,conflict:entry.conflicts.length>0,history_count:entry.history.length,followup:leadFollowup(d.lead_user[entry.lead_id]),assessment:leadAssessment(entry.data,d.settings)})).sort((a,b)=>Number(a.assessment.failures.length>0)-Number(b.assessment.failures.length>0)||Number(b.followup.saved)-Number(a.followup.saved)||Number(a.price_wan===null)-Number(b.price_wan===null)||Date.parse(b.retrieved_at)-Date.parse(a.retrieved_at));}
   function leadDetail(d,id){const item=leads(d).find(x=>x.lead_id===id),entry=d.leads.find(x=>x.lead_id===id);if(!item)fail('公开线索不存在');return {...item,history:clone(entry.history),conflicts:clone(entry.conflicts)};}
-  function state(){const offers=list(db),health=clone(db.source_health),published=db.public_feed;if(feedReadError)health._public_feed={...(health._public_feed||{}),error:feedReadError,next_run:null};return {csrf:'browser-local',version:bootstrap.version||'0.4.0',offers,leads:leads(db),research:clone(published.research),public_feed_schema_version:published.schema_version,alerts:db.alerts.slice(-500).reverse(),settings:clone(db.settings),stages:clone(STAGES),statuses:clone(STATUSES),knowledge:clone(bootstrap.knowledge),sources:clone(db.sources),source_health:health,duplicates:duplicates(offers),server_started_at:null,worker_error:'',mail_configured:false,active_sources:0,configured_sources:db.sources.filter(x=>x.enabled&&x.authorized).length,mode:'browser',storage_mode:'localStorage',background_collection:false,feed_status:clone(health._public_feed||{}),public_sources:clone(published.sources),public_source_health:clone(published.source_health),published_monitoring:clone(published.monitoring),public_feed_generated_at:published.generated_at,storage_notice:'记录仅保存在此浏览器；清除网站数据或更换设备不会自动保留，请定期下载浏览器备份。'};}
+  function promoteLead(d,id){
+    const entry=d.leads.find(x=>x.lead_id===id);if(!entry)fail('公开线索不存在');
+    const followup=leadFollowup(d.lead_user[id]);
+    if(followup.linked_offer_id){if(!d.offers.some(x=>x.id===followup.linked_offer_id))fail('关联房源不存在，请检查浏览器备份');return {ok:true,offer_id:followup.linked_offer_id,created:false};}
+    const lead=entry.data,data=normalize({source:LEAD_LOCAL_SOURCE,source_item_id:'lead:'+id,url:lead.source_url,title:lead.community||'公开广告待核实',community:lead.community,district:lead.district,price_wan:lead.price_wan,rooms:lead.rooms,bathrooms:lead.bathrooms,area_m2:lead.area_m2,decoration:lead.decoration_claim,observed_at:lead.retrieved_at,status:'平台展示',housing_type:'未知',source_kind:lead.evidence_kind==='search_index'?'公开搜索摘要转入，广告陈述待核实':'公开页面转入，广告陈述待核实',...Object.fromEntries(BOOLS.map(k=>[k,lead[k]])),data_issues:['由公开线索转入：字段仅为广告陈述，尚未确认单套住宅、当前在售、房况和产权。',...(entry.conflicts.length?['公开线索存在同时间内容冲突，请回到来源核对。']:[]),...lead.uncertainties],raw_text:['公开线索 ID：'+id,'来源：'+lead.source_url,'来源条目编号：'+(lead.source_item_id||'未知'),'原始检索时间：'+lead.retrieved_at,'来源发布时间：'+(lead.source_published_at||'未知'),'来源更新时间：'+(lead.source_updated_at||'未知'),'装修广告：'+(lead.decoration_claim||'未知'),'检索时间不是挂牌时间，也不代表人工核验时间。'].join('\n')},true);
+    // Link an existing local seed without importing again or overwriting later private edits.
+    let item=d.offers.find(x=>x.identity===identity(data)),created=false;
+    if(!item){const result=importRows(d,[data],true);item=d.offers.find(x=>x.id===result.ids[0]);d.user[item.id].notes=followup.notes;created=true;audit(d,item.id,'公开线索转入','用户选择线索 '+id+'；保留原始检索时间，待人工核实。');}
+    d.lead_user[id]={...followup,linked_offer_id:item.id,updated_at:now()};return {ok:true,offer_id:item.id,created};
+  }
+  function state(){const offers=list(db),health=clone(db.source_health),published=db.public_feed;if(feedReadError)health._public_feed={...(health._public_feed||{}),error:feedReadError,next_run:null};return {csrf:'browser-local',version:bootstrap.version||'0.4.0',offers,leads:leads(db),research:clone(published.research),public_feed_schema_version:published.schema_version,alerts:db.alerts.slice(-500).reverse(),settings:clone(db.settings),preferences:clone(db.preferences),stages:clone(STAGES),statuses:clone(STATUSES),knowledge:clone(bootstrap.knowledge),sources:clone(db.sources),source_health:health,duplicates:duplicates(offers),server_started_at:null,worker_error:'',mail_configured:false,active_sources:0,configured_sources:db.sources.filter(x=>x.enabled&&x.authorized).length,mode:'browser',storage_mode:'localStorage',background_collection:false,feed_status:clone(health._public_feed||{}),public_sources:clone(published.sources),public_source_health:clone(published.source_health),published_monitoring:clone(published.monitoring),public_feed_generated_at:published.generated_at,storage_notice:'记录仅保存在此浏览器；清除网站数据或更换设备不会自动保留，请定期下载浏览器备份。'};}
   function csvCells(input){
     const rows=[];let row=[],cell='',quoted=false,ended=false;
     for(let i=0;i<input.length;i++){const c=input[i];if(quoted){if(c==='"'){if(input[i+1]==='"'){cell+='"';i++;}else {quoted=false;ended=true;}}else cell+=c;}
@@ -339,13 +405,13 @@
     db=candidate;savedValue=serialized;
   }
   function refreshStorage(){let current;try{current=root.localStorage.getItem(KEY);}catch{fail('浏览器禁止读取本地存储，请允许此站点存储后重试。');}if(current===savedValue)return;if(!current)fail('浏览器数据已被其他页面清除；请重新加载页面后再操作。');let updated;try{updated=validateBackup(JSON.parse(current));}catch(e){fail('其他页面的浏览器数据无法读取，未覆盖现有记录：'+e.message);}db=updated;savedValue=current;}
-  function empty(){return {schema_version:SCHEMA,sequence:0,settings:settings(bootstrap.settings||{}),offers:[],user:{},snapshots:[],alerts:[],audit:[],sources:[],inbox:{},source_health:{},leads:[],lead_user:{},public_feed:publicMetadata(null)};}
+  function empty(){return {schema_version:SCHEMA,sequence:0,settings:settings(bootstrap.settings||{}),preferences:preferences(),offers:[],user:{},snapshots:[],alerts:[],audit:[],sources:[],inbox:{},source_health:{},leads:[],lead_user:{},public_feed:publicMetadata(null)};}
   function validateBackup(input){
     if(!object(input)||input.schema_version!==SCHEMA)fail('备份格式或版本不兼容');
     const p=input.browser_backup===true?input.data:input;if(!object(p)||p.schema_version!==SCHEMA)fail('请选择本系统的浏览器 JSON 备份；房源导出文件不包含核验和笔记');
-    const out=empty();out.settings=settings(p.settings||{});out.sources=sources(p.sources||[]);out.public_feed=publicMetadata(p.public_feed);
+    const out=empty();out.settings=settings(p.settings||{});out.preferences=preferences(p.preferences===undefined?{}:p.preferences);out.sources=sources(p.sources||[]);out.public_feed=publicMetadata(p.public_feed);
     if(p.leads!==undefined){if(!Array.isArray(p.leads)||p.leads.length>10000)fail('备份公开线索数量不合法');const ids=new Set();for(const entry of p.leads){if(!object(entry)||typeof entry.in_latest_feed!=='boolean'||!Array.isArray(entry.history)||!Array.isArray(entry.conflicts)||entry.history.length>20||entry.conflicts.length>20)fail('备份公开线索结构不合法');const data=normalizeLead(entry.data),id=leadId(entry.lead_id);if(id!==data.lead_id||ids.has(id))fail('备份公开线索身份不一致或重复');ids.add(id);const check=x=>{const item=normalizeLead(x);if(item.lead_id!==id||item.source_url!==data.source_url||item.source_item_id!==data.source_item_id)fail('备份公开线索历史身份不一致');return item;};out.leads.push({lead_id:id,data,history:entry.history.map(check),conflicts:entry.conflicts.map(check),in_latest_feed:entry.in_latest_feed});}}
-    if(p.lead_user!==undefined){if(!object(p.lead_user))fail('备份线索笔记结构不正确');for(const [id,u] of Object.entries(p.lead_user)){leadId(id);if(!out.leads.some(x=>x.lead_id===id)||!object(u)||typeof u.saved!=='boolean'||typeof u.notes!=='string')fail('备份线索笔记关联不正确');out.lead_user[id]={saved:u.saved,notes:text(u.notes,16000),updated_at:u.updated_at?recordTime(u.updated_at):null};}}
+    if(p.lead_user!==undefined){if(!object(p.lead_user))fail('备份线索笔记结构不正确');for(const [id,u] of Object.entries(p.lead_user)){leadId(id);if(!out.leads.some(x=>x.lead_id===id)||!object(u)||typeof u.saved!=='boolean'||typeof u.notes!=='string')fail('备份线索笔记关联不正确');out.lead_user[id]=leadFollowup(u);}}
     for(const k of ['offers','snapshots','alerts','audit'])if(!Array.isArray(p[k]))fail('备份缺少 '+k+' 数组');
     if(p.offers.length>10000||p.snapshots.length>50000||p.alerts.length>50000||p.audit.length>50000||!object(p.user)||!object(p.inbox)||!object(p.source_health))fail('备份结构或记录数量不合法');
     const ids=new Set(),keys=new Set();
@@ -355,6 +421,7 @@
       for(const [cid,c] of Object.entries(u.checks)){const spec=bootstrap.knowledge.checks.find(x=>x.id===cid);if(!spec||!object(c)||!CHECK_STATUS.includes(c.status))fail('备份核验项不合法');const evidence=text(c.evidence,8000);if(['通过','不适用','有风险'].includes(c.status)&&evidence.length<5)fail('备份通过/风险核验必须含具体依据');if(c.status==='不适用'&&(!spec.allow_na||cid==='newhome'&&data.housing_type==='精装现房'))fail('备份含不允许跳过的必要核验');user.checks[cid]={status:c.status,evidence,updated_at:recordTime(c.updated_at)};}
       out.user[raw.id]=user;
     }
+    for(const [id,u] of Object.entries(out.lead_user))if(u.linked_offer_id){const related=out.offers.find(x=>x.id===u.linked_offer_id);if(!related||related.identity!=='item:'+LEAD_LOCAL_SOURCE+':lead:'+id)fail('备份线索关联房源不存在或身份不一致');}
     const recordIds=new Set(),seq=value=>{const n=numeric(value,'记录编号',1,Number.MAX_SAFE_INTEGER-100000,true);if(recordIds.has(n))fail('备份记录编号重复');recordIds.add(n);out.sequence=Math.max(out.sequence,n);return n;};
     out.sequence=numeric(p.sequence||0,'备份计数',0,Number.MAX_SAFE_INTEGER-100000,true);
     for(const h of p.snapshots){if(!object(h)||!ids.has(h.offer_id))fail('备份快照关联房源不存在');const data=normalize(h.data,true),related=out.offers.find(x=>x.id===h.offer_id);if(identity(data)!==related.identity||time(h.observed_at)!==data.observed_at)fail('备份快照来源身份或时间不一致');out.snapshots.push({id:seq(h.id),offer_id:h.offer_id,observed_at:data.observed_at,captured_at:recordTime(h.captured_at),data});}
@@ -364,7 +431,7 @@
     // Health is display-only. Rebuild a bounded whitelist instead of trusting arbitrary backup keys.
     for(const sid of [...out.sources.map(x=>x.id),'_public_feed']){const h=p.source_health[sid];if(!object(h))continue;const safe={last_attempt:h.last_attempt?recordTime(h.last_attempt):null,last_success:h.last_success?recordTime(h.last_success):null,newest_observed_at:h.newest_observed_at?recordTime(h.newest_observed_at):null,error:h.error?text(h.error,500):null,warnings:Array.isArray(h.warnings)?h.warnings.filter(x=>typeof x==='string').slice(0,20).map(x=>text(x,500)):[],next_run:null,failures:Number.isInteger(h.failures)&&h.failures>=0?h.failures:0,paused:false};
       for(const k of ['row_count','stale_rows_at_sync'])if(own(h,k))safe[k]=numeric(h[k],'来源记录数量',0,10000,true);
-      if(object(h.result)){safe.result={};for(const k of ['new','changed','unchanged','older_ignored','conflicts'])safe.result[k]=numeric(h.result[k]||0,'同步结果数量',0,10000,true);safe.result.ids=Array.isArray(h.result.ids)?h.result.ids.filter(x=>ids.has(x)).slice(0,1000):[];}out.source_health[sid]=safe;}
+      if(object(h.result)){safe.result={};for(const k of ['new','changed','unchanged','older_ignored','conflicts'])safe.result[k]=numeric(h.result[k]||0,'同步结果数量',0,10000,true);for(const k of ['leads_new','leads_changed','leads_conflicts','leads_older_ignored'])if(own(h.result,k))safe.result[k]=numeric(h.result[k],'线索同步结果数量',0,10000,true);safe.result.ids=Array.isArray(h.result.ids)?h.result.ids.filter(x=>ids.has(x)).slice(0,1000):[];}out.source_health[sid]=safe;}
     return out;
   }
   async function init(){
@@ -393,7 +460,9 @@
     else if(path==='/api/check'){const item=offer(candidate,body.id),spec=bootstrap.knowledge.checks.find(x=>x.id===body.check_id),evidence=text(body.evidence,8000);if(!spec||!CHECK_STATUS.includes(body.status))fail('检查项或状态不正确');if(['通过','不适用','有风险'].includes(body.status)&&evidence.length<5)fail('请记录具体核验依据或不适用原因，至少5个字符；不能只打勾');if(body.status==='不适用'&&(!spec.allow_na||spec.id==='newhome'&&item.housing_type==='精装现房'))fail('这是一项必要核验，不能标为不适用');candidate.user[item.id].checks[spec.id]={status:body.status,evidence,updated_at:now()};audit(candidate,item.id,'核验记录',spec.title+'：'+body.status+'；'+evidence);result={ok:true};}
     else if(path==='/api/workflow'){const item=offer(candidate,body.id),stage=own(body,'stage')?body.stage:item.stage;if(!STAGES.includes(stage))fail('流程阶段不正确');if(['付定金','待签约','贷款办理','过户交房','已完成'].includes(stage)&&stage!==item.stage){const a=item.assessment,problems=[...a.unresolved,...a.failures,...a.pending,...a.critical];if(['付定金','待签约','贷款办理'].includes(stage)&&item.status!=='已确认在售')problems.push('需确认当前在售状态');if(item.status==='已下架')problems.push('房源已下架，需核实实际交易情况');if(item.data_issues.length)problems.push('来源存在信息冲突，请先复核并更新房源');if(a.stale)problems.push('房源观测已过期，请重新核实在售状态');if(problems.length)fail('系统流程提醒：关键核验尚未完成，暂不能推进。'+problems.slice(0,6).join('；'));if(stage==='已完成'&&!cleared(item.checks.find(x=>x.id==='delivery')||{}))fail('交房交接核验尚未完成');}const u=candidate.user[item.id];u.stage=stage;if(own(body,'notes'))u.notes=String(body.notes||'').slice(0,16000);if(own(body,'group_id'))u.group_id=text(body.group_id,100);audit(candidate,item.id,'流程/笔记',JSON.stringify({stage:u.stage,notes:u.notes,group_id:u.group_id}));result={ok:true};}
     else if(path==='/api/alert'){const a=candidate.alerts.find(x=>x.id===Number(body.id)),confirmation=text(body.confirmation,4000);if(!a)fail('提醒不存在');if(confirmation&&confirmation.length<5)fail('确认依据至少5个字符');a.read_at=now();if(confirmation)a.confirmation=confirmation;result={ok:true};}
-    else if(path==='/api/lead-followup'){const id=leadId(body.lead_id);if(!candidate.leads.some(x=>x.lead_id===id))fail('公开线索不存在');const prev=candidate.lead_user[id]||{saved:false,notes:'',updated_at:null};if(own(body,'saved')&&typeof body.saved!=='boolean'||own(body,'notes')&&typeof body.notes!=='string')fail('关注须为布尔值，笔记须为文本');candidate.lead_user[id]={saved:own(body,'saved')?body.saved:prev.saved,notes:own(body,'notes')?text(body.notes,16000):prev.notes,updated_at:now()};result={ok:true};}
+    else if(path==='/api/lead-followup'){const id=leadId(body.lead_id);if(!candidate.leads.some(x=>x.lead_id===id))fail('公开线索不存在');candidate.lead_user[id]=updateLeadFollowup(candidate.lead_user[id],body);result={ok:true};}
+    else if(path==='/api/lead-promote')result=promoteLead(candidate,leadId(body.lead_id));
+    else if(path==='/api/preferences'){candidate.preferences=preferences(body,candidate.preferences);result=clone(candidate.preferences);}
     else if(path==='/api/settings'){candidate.settings=settings(body,candidate.settings);result=clone(candidate.settings);}
     else if(path==='/api/sources'){candidate.sources=sources(body.sources);result=clone(candidate.sources);}
     else if(path==='/api/inbox'){if(typeof body.filename!=='string'||!/^[A-Za-z0-9][A-Za-z0-9_-]{0,79}\.json$/.test(body.filename))fail('文件名须为英文字母/数字/横杠/下划线组成的 .json 文件名，不得含路径');const rows=decode(body.text,body.format||'json',true);if(own(candidate.inbox,body.filename)&&body.overwrite!==true)fail('同名文件已存在；确认替换后再勾选覆盖');const payload=JSON.stringify({schema_version:1,listings:rows});if(size(payload)>MAX_BYTES)fail('标准化后的文件超过2MB，请拆分');candidate.inbox[body.filename]=payload;result={filename:body.filename,row_count:rows.length,message:'文件仅保存在当前浏览器，配置来源并主动同步后才会导入。原始观测时间未改写。'};}

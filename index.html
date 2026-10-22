@@ -11,14 +11,10 @@
   <div class="side-label">我的购房工作台</div>
   <nav id="nav">
     <button data-view="overview" class="active" aria-current="page"><span aria-hidden="true">◫</span>找房线索</button>
-    <button data-view="library"><span aria-hidden="true">⌂</span>我的房源</button>
+    <button data-view="followups"><span aria-hidden="true">◷</span>跟进看房</button>
+    <button data-view="compare"><span aria-hidden="true">⇄</span>房源对比</button>
     <button data-view="sources"><span aria-hidden="true">⌁</span>来源渠道</button>
-    <button data-view="alerts"><span>◉</span>变化提醒 <b id="alert-badge">0</b></button>
-    <button data-view="compare"><span>⇄</span>房源对比</button>
-    <button data-view="finance"><span>▤</span>预算与月供</button>
-    <button data-view="guide"><span>☷</span>购房避坑手册</button>
-    <button data-view="digest"><span>▣</span>每日观察简报</button>
-    <button data-view="settings"><span>⚙</span>筛选设置</button>
+    <button data-view="tools"><span aria-hidden="true">☷</span>更多工具</button>
   </nav>
   <div class="side-bottom"><span class="live-dot"></span><span id="connection">连接中…</span><small>仅限吉州区、吉安县<br>排除井开区、青原区<br><span id="runtime-label">版本 0.3 · 个人本地版</span></small></div>
 </aside>
@@ -26,12 +22,39 @@
   <header class="topbar"><div><span class="eyebrow">吉安 · 个人购房工作台</span><h1 id="page-title">找房线索</h1></div><div class="top-actions"><span id="today"></span><button class="secondary" id="refresh">检查更新</button><button class="primary" id="add-offer">＋ 收录房源</button></div></header>
   <div id="global-notice" class="notice compact-notice" role="status"></div>
   <section id="view-overview" class="view active">
-    <div class="research-hero"><div><span class="eyebrow">吉州区 / 吉安县 · 三房双卫</span><h2>把值得追问的房子，先留下来</h2><p>按预算与区域筛选，关注后查看原文和待问事项。广告线索的当前在售情况仍需确认。</p><div id="lead-summary" class="lead-summary"></div></div><div class="research-target"><span id="lead-budget-label">预计购房总支出目标</span><strong id="lead-budget-target">75<small>万元</small></strong><button class="text-btn" data-view="settings">调整预算与偏好 →</button></div></div>
+    <!-- v0.6: a working shortlist, not a promotional hero. Dates and unknown facts stay visible. -->
+    <div class="requirements-strip"><div><strong>吉州区 / 吉安县</strong><span>三房双卫 · 电梯 · 停车可落实</span></div><div class="requirements-budget"><span id="lead-budget-label">预计总支出</span><strong id="lead-budget-target">75<small>万元</small></strong><button class="text-btn" data-view="settings">调整</button></div></div>
+    <div id="lead-summary" class="lead-summary"></div>
     <div class="research-status" id="research-status" role="status"></div>
     <div class="lead-tabs" id="lead-tabs" aria-label="线索快捷分类"></div>
-    <div class="filter-panel"><div class="filters lead-filters" id="lead-filter-controls"><input id="lead-search" placeholder="搜索小区、平台或跟进笔记" aria-label="搜索公开线索"><select id="lead-filter" aria-label="公开线索筛选"><option value="candidate">全部候选</option><option value="target">预算目标内</option><option value="pending">待补资料</option><option value="saved">我的关注</option><option value="all">全部记录（含历史与不符项）</option></select><select id="lead-region" aria-label="公开线索区域"><option value="">全部区域</option><option>吉州区</option><option>吉安县</option><option value="unknown">行政归属待核实</option></select><select id="lead-platform" aria-label="来源平台"><option value="">全部平台</option></select><select id="lead-kind" aria-label="信息类型"><option value="">全部信息类型</option><option value="direct_listing">公开页面线索</option><option value="search_index">搜索摘要线索</option></select><select id="lead-sort" aria-label="线索排序"><option value="recent">最近检索优先</option><option value="price-asc">广告价从低到高</option><option value="price-desc">广告价从高到低</option><option value="updated">来源更新时间优先（未知在后）</option></select><button id="lead-reset" class="text-btn">清空筛选</button></div><div class="results-line"><span id="lead-result-count" aria-live="polite"></span><button class="text-btn mobile-filter-toggle" id="lead-filter-toggle" aria-expanded="false" aria-controls="lead-filter-controls">筛选与排序</button><span>同小区的多条广告可能重复，条数不代表独立房屋数</span></div></div>
+    <div class="filter-panel">
+      <div class="search-line"><input id="lead-search" placeholder="搜索小区、平台、标签或笔记" aria-label="搜索公开线索"><button class="secondary" id="lead-filter-toggle" aria-expanded="false" aria-controls="lead-filter-controls">筛选条件</button></div>
+      <div class="filters lead-filters" id="lead-filter-controls">
+        <label>线索范围<select id="lead-filter"><option value="candidate">可继续了解</option><option value="target">预算目标内</option><option value="pending">待补资料</option><option value="saved">我的关注</option><option value="rejected">我已排除</option><option value="all">全部记录</option></select></label>
+        <label>区域<select id="lead-region"><option value="">全部区域</option><option>吉州区</option><option>吉安县</option><option value="unknown">行政归属待核实</option></select></label>
+        <label>来源平台<select id="lead-platform"><option value="">全部平台</option></select></label>
+        <label>信息类型<select id="lead-kind"><option value="">全部类型</option><option value="direct_listing">单套详情页</option><option value="search_index">搜索摘要</option></select></label>
+        <label>广告价最低 / 万<input id="lead-price-min" type="number" min="0" step="0.1" placeholder="不限"></label><label>广告价最高 / 万<input id="lead-price-max" type="number" min="0" step="0.1" placeholder="不限"></label>
+        <label>面积最低 / ㎡<input id="lead-area-min" type="number" min="0" step="1" placeholder="不限"></label><label>面积最高 / ㎡<input id="lead-area-max" type="number" min="0" step="1" placeholder="不限"></label>
+        <label>双卫<select id="lead-bathrooms"><option value="">含未知</option><option value="yes">明确至少双卫</option><option value="unknown">卫数待核实</option><option value="no">明确不足双卫</option></select></label>
+        <label>电梯<select id="lead-elevator"><option value="">含未知</option><option value="yes">明确有</option><option value="unknown">待核实</option><option value="no">明确无</option></select></label>
+        <label>停车可落实<select id="lead-parking"><option value="">含未知</option><option value="yes">明确可落实</option><option value="unknown">待核实</option><option value="no">明确不符合</option></select></label>
+        <label>少量整理入住<select id="lead-move-in"><option value="">含未知</option><option value="yes">明确可入住</option><option value="unknown">待核实</option><option value="no">明确不符合</option></select></label>
+        <label>条件依据<select id="lead-verification"><option value="">仅按公开广告</option><option value="personal">仅按我的核实</option></select></label>
+        <label>来源日期<select id="lead-freshness"><option value="">不限（含未知）</option><option value="30">原文近30天</option><option value="90">原文近90天</option><option value="old">原文超过90天</option><option value="unknown">原文日期未知</option></select></label>
+        <label>我的进度<select id="lead-progress"><option value="">全部进度</option><option value="new">未处理</option><option value="contact">待联系</option><option value="visit">已约看</option><option value="visited">已看房</option><option value="hold">暂缓</option><option value="rejected">已排除</option></select></label>
+        <label>我的标签<input id="lead-tag" placeholder="如：采光好、停车待问" maxlength="24"></label>
+        <label>排序<select id="lead-sort"><option value="published">来源日期最近</option><option value="recent">最近检索</option><option value="complete">关键资料较全</option><option value="price-asc">广告价从低到高</option><option value="price-desc">广告价从高到低</option><option value="updated">来源更新时间</option></select></label>
+        <div class="filter-save-actions"><button class="secondary" id="save-lead-filters">记住这组筛选</button><button class="text-btn" id="restore-lead-filters">恢复常用筛选</button></div>
+      </div>
+      <div id="lead-filter-chips" class="filter-chips"></div>
+      <div class="results-line"><span id="lead-result-count" aria-live="polite"></span><button id="lead-reset" class="text-btn">清空筛选</button><div class="layout-switch" aria-label="展示方式"><button data-lead-layout="list" aria-pressed="true">列表</button><button data-lead-layout="cards" aria-pressed="false">卡片</button><button data-lead-layout="community" aria-pressed="false">按小区</button></div></div>
+    </div>
+    <div id="lead-compare-bar" class="selection-bar" hidden></div>
     <div id="lead-cards" class="lead-cards"></div>
   </section>
+  <section id="view-followups" class="view"><div class="section-heading"><div><h2>下一步要做什么</h2><p>关注、联系、约看和现场反馈都记在同一条线索里。</p></div><button class="secondary" id="export-followup-plan">导出跟进清单</button></div><div id="followup-summary" class="followup-summary"></div><div id="followup-tabs" class="lead-tabs"></div><div id="followup-list" class="followup-list"></div></section>
+  <section id="view-tools" class="view"><div class="section-heading"><div><h2>把资料留好，把关键问题核实</h2><p>看房前后用得到的工具，集中放在这里。</p></div></div><div class="tool-grid"><button data-view="library"><strong>我的房源 · 核验档案</strong><span>保存具体房屋、报价历史与产权核验</span></button><button data-view="finance"><strong>预算与月供</strong><span>估算总支出、首付、贷款与现金余量</span></button><button data-view="settings"><strong>购房条件与备份</strong><span>调整偏好，备份或恢复本浏览器记录</span></button><button data-view="guide"><strong>看房与购房核验手册</strong><span>按房屋、停车、产权、资金逐项核对</span></button><button data-view="alerts"><strong>变化提醒 <b id="alert-badge">0</b></strong><span>查看同源观测变化，记录人工确认</span></button><button data-view="digest"><strong>我的观察简报</strong><span>整理已有记录与下一步行动</span></button></div></section>
   <section id="view-library" class="view">
     <div class="notice" id="browser-storage-notice" hidden>个人房源、关注和笔记仅在当前浏览器保存。换设备或清理站点数据前，请下载完整备份。<button class="text-btn" data-view="settings">备份与恢复 →</button></div>
     <div class="summary-grid" id="stats"></div>
@@ -41,7 +64,7 @@
     <div id="cards" class="cards"></div><div id="duplicate-notice"></div>
   </section>
   <section id="view-alerts" class="view"><div class="section-heading"><div><h2>发生了什么变化</h2><p>只比较同一来源的同一房源。跨平台低价不算降价；无法读取不算下架，下架也不算成交。</p></div></div><div id="alerts-list"></div></section>
-  <section id="view-compare" class="view"><div class="section-heading"><div><h2>把候选放在同一张桌上</h2><p>在“我的房源”卡片勾选2—4条进行对比，未知字段不会自动补齐。</p></div></div><div id="compare-table"></div></section>
+  <section id="view-compare" class="view"><div class="section-heading"><div><h2>把候选放在同一张桌上</h2><p>在找房列表勾选2—4条。广告、我的核实和关键缺项分别比较。</p></div><button class="secondary" id="copy-lead-comparison">复制对比清单</button></div><div id="lead-comparison"></div><details class="panel"><summary>私人核验档案对比</summary><p class="hint">在“更多工具 → 我的房源”勾选记录后查看。</p><div id="compare-table"></div></details></section>
   <section id="view-finance" class="view">
     <div class="two-col"><div class="panel"><span class="eyebrow">SCENARIO · 情景测算</span><h2>买得起，也要留得住现金</h2><p class="muted">按75万元全部购房支出目标演示：70万元房价、40万元首付，另预留5万元费用和整备。3%利率、2万元税费杂费、3万元整备费只是可编辑假设，不是银行报价或当地费用标准。</p>
     <form id="finance-form" class="form-grid">
